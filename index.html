@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
+    />
+    <title>Hollywood Tycoon XP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body,
+      button,
+      input,
+      select,
+      textarea {
+        font-family: "Tahoma", "Verdana", "Segoe UI", sans-serif;
+        -webkit-font-smoothing: none;
+      }
+
+      * {
+        cursor: url("/images/default_arrow.cur"), default;
+      }
+
+      button,
+      a,
+      [role="button"],
+      .cursor-pointer {
+        cursor: url("/images/harrow.cur"), pointer !important;
+      }
+
+      .cursor-wait,
+      .cursor-wait * {
+        cursor: url("/images/default_wait.cur"), wait !important;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      /* Authentic Bliss Wallpaper */
+      .desktop-bg {
+        background-image: url("/images/backgroundimg.webp");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        height: 100vh;
+        width: 100vw;
+        background-color: #245edb;
+      }
+
+      ::-webkit-scrollbar {
+        width: 16px;
+        height: 16px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-left: 1px solid #d4d4d4;
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: #c1c1c1;
+        border: 2px solid #f1f1f1;
+        box-shadow: inset 1px 1px 0 white, inset -1px -1px 0 #888;
+      }
+
+      .xp-window-shadow {
+        box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      .bevel-outset {
+        border: 2px solid;
+        border-top-color: #fff;
+        border-left-color: #fff;
+        border-right-color: #808080;
+        border-bottom-color: #808080;
+      }
+
+      .bevel-inset {
+        border: 2px solid;
+        border-top-color: #808080;
+        border-left-color: #808080;
+        border-right-color: #fff;
+        border-bottom-color: #fff;
+      }
+
+      .xp-title-gradient {
+        background: linear-gradient(90deg, #0058ee 0%, #3593ff 100%);
+      }
+
+      .xp-taskbar-gradient {
+        background: linear-gradient(
+          180deg,
+          #245edb 0%,
+          #3f8cf3 9%,
+          #245edb 18%,
+          #245edb 92%,
+          #1941a5 100%
+        );
+      }
+
+      .xp-start-button {
+        background: linear-gradient(
+          180deg,
+          #388e3c 0%,
+          #4caf50 10%,
+          #388e3c 20%,
+          #2e7d32 90%,
+          #1b5e20 100%
+        );
+        border-top-right-radius: 10px;
+        border-bottom-right-radius: 10px;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+      }
+
+      .desktop-icon-text {
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+      }
+
+      @keyframes ticker {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(-50%);
+        }
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@^19.2.3",
+          "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+          "react/": "https://esm.sh/react@^19.2.3/",
+          "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="/index.css" />
+  </head>
+  <body class="desktop-bg">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

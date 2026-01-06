@@ -1,0 +1,13 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 15.3814 21.8925" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Arrow">
+<path d="M0.5 2.00388C0.5 0.752234 1.94256 0.0509083 2.92676 0.824188L14.3086 9.76657C15.0727 10.3671 15.0727 11.5254 14.3086 12.1259L2.92676 21.0683C1.94256 21.8416 0.5 21.1403 0.5 19.8886V2.00388Z" fill="var(--fill-0, #64AB4B)"/>
+<path d="M0.5 2.00388C0.5 0.752234 1.94256 0.0509083 2.92676 0.824188L14.3086 9.76657C15.0727 10.3671 15.0727 11.5254 14.3086 12.1259L2.92676 21.0683C1.94256 21.8416 0.5 21.1403 0.5 19.8886V2.00388Z" fill="url(#paint0_radial_20148_4066)"/>
+<path d="M0.5 2.00388C0.5 0.752234 1.94256 0.0509083 2.92676 0.824188L14.3086 9.76657C15.0727 10.3671 15.0727 11.5254 14.3086 12.1259L2.92676 21.0683C1.94256 21.8416 0.5 21.1403 0.5 19.8886V2.00388Z" stroke="var(--stroke-0, #3E722A)"/>
+</g>
+<defs>
+<radialGradient id="paint0_radial_20148_4066" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(8 15.4463) rotate(141.843) scale(8.90225 9.05913)">
+<stop offset="0.197115" stop-color="#7FF747"/>
+<stop offset="1" stop-color="#7FF747" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>
