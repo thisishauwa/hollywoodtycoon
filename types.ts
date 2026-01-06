@@ -1,11 +1,12 @@
-
 export enum Genre {
   Action = "Action",
   Comedy = "Comedy",
   Drama = "Drama",
   SciFi = "Sci-Fi",
   Horror = "Horror",
-  Romance = "Romance"
+  Romance = "Romance",
+  Thriller = "Thriller",
+  Fantasy = "Fantasy",
 }
 
 export enum ActorTier {
@@ -13,21 +14,21 @@ export enum ActorTier {
   BList = "B-List",
   CList = "C-List",
   IndieDarling = "Indie Darling",
-  Newcomer = "Newcomer"
+  Newcomer = "Newcomer",
 }
 
 export interface Actor {
   id: string;
   name: string;
   age: number;
-  gender: 'Male' | 'Female';
+  gender: "Male" | "Female";
   tier: ActorTier;
   salary: number;
   reputation: number;
   skill: number;
   genres: Genre[];
   img: string;
-  status: 'Available' | 'In Production' | 'Retired' | 'Deceased';
+  status: "Available" | "In Production" | "Retired" | "Deceased";
   bio: string;
   visualDescription: string;
   personality: string[];
@@ -43,17 +44,23 @@ export interface Script {
   complexity: number;
   baseCost: number;
   currentBid: number;
-  highBidderId: string; // 'player' or rivalId
+  highBidderId: string | null; // 'player' or rivalId or null
   description: string;
   requiredCast: number;
-  tone: 'Serious' | 'Lighthearted' | 'Dark' | 'Quirky';
+  tone:
+    | "Serious"
+    | "Lighthearted"
+    | "Dark"
+    | "Quirky"
+    | "Melancholic"
+    | "Uplifting";
 }
 
 export enum ProjectStatus {
   PreProduction = "Pre-Production",
   Filming = "Filming",
   PostProduction = "Post-Production",
-  Released = "Released"
+  Released = "Released",
 }
 
 export interface Movie {
@@ -82,7 +89,7 @@ export interface RivalStudio {
   balance: number;
   yearlyRevenue: number;
   color: string;
-  personality: 'Aggressive' | 'Friendly' | 'Elitist' | 'Chaotic';
+  personality: "Aggressive" | "Friendly" | "Elitist" | "Chaotic";
   relationship: number; // -100 to 100
   ownedActors: string[]; // IDs
   ownedScripts: string[]; // IDs
@@ -118,6 +125,6 @@ export interface GameEvent {
   id: string;
   month: number;
   message: string;
-  type: 'INFO' | 'GOOD' | 'BAD' | 'AUCTION' | 'GOSSIP' | 'AD';
+  type: "INFO" | "GOOD" | "BAD" | "AUCTION" | "GOSSIP" | "AD";
   read: boolean;
 }

@@ -204,8 +204,16 @@ export const WindowFrame: React.FC<{
 export const RetroButton: React.FC<
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     variant?: "primary" | "default";
+    isLoading?: boolean;
   }
-> = ({ children, variant = "default", className = "", ...props }) => {
+> = ({
+  children,
+  variant = "default",
+  className = "",
+  isLoading = false,
+  disabled,
+  ...props
+}) => {
   const baseStyles =
     "px-3 py-1 text-[11px] active:border-[#808080] active:border-b-white active:border-r-white active:bg-[#e0e0e0] transition-all flex items-center justify-center gap-2 shadow-sm font-bold";
   const variants = {
@@ -215,10 +223,15 @@ export const RetroButton: React.FC<
       "bg-[#e1e1e1] border-2 border-white border-b-[#808080] border-r-[#808080] text-black hover:bg-[#efefef]",
   };
 
+  const isDisabled = disabled || isLoading;
+  const cursorClass = isLoading ? "cursor-wait" : "cursor-pointer";
+  const disabledClass = isDisabled ? "opacity-50 pointer-events-none" : "";
+
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${className}`}
+      className={`${baseStyles} ${variants[variant]} ${cursorClass} ${disabledClass} ${className}`}
       style={{ fontFamily: "Tahoma, sans-serif" }}
+      disabled={isDisabled}
       {...props}
     >
       {children}

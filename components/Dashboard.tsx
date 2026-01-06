@@ -1,10 +1,25 @@
-import React from "react";
+import React, { useState } from "react";
 import { GameState } from "../types";
 import { WindowFrame, RetroProgressBar, RetroButton } from "./RetroUI";
 
+// Windows XP Profile Icons
+const PROFILE_ICONS = [
+  "/images/profile-airplane.jpg",
+  "/images/profile-astronaut.jpg",
+  "/images/profile-ball.jpg",
+  "/images/profile-beach.jpg",
+  "/images/profile-car.jpg",
+  "/images/profile-cat.jpg",
+  "/images/profile-chess.jpg",
+  "/images/profile-dog.jpg",
+  "/images/profile-duck.jpg",
+  "/images/profile-fish.jpg",
+  "/images/profile-guitar.jpg",
+  "/images/profile-snowflake.jpg",
+];
+
 interface Props {
   state: GameState;
-  onAdvance: () => void;
 }
 
 const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
@@ -27,7 +42,12 @@ const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
   );
 };
 
-export const Dashboard: React.FC<Props> = ({ state, onAdvance }) => {
+export const Dashboard: React.FC<Props> = ({ state }) => {
+  // Generate random profile icon once
+  const [profileIcon] = useState(
+    () => PROFILE_ICONS[Math.floor(Math.random() * PROFILE_ICONS.length)]
+  );
+
   const allStudios = [
     {
       name: state.studioName,
@@ -57,8 +77,12 @@ export const Dashboard: React.FC<Props> = ({ state, onAdvance }) => {
               </div>
               <div className="flex-1 flex flex-col gap-4 p-3 bg-[#f4f4f4] overflow-hidden">
                 <div className="flex items-center gap-3 border-b border-gray-300 pb-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#2151e3] to-[#3a72ff] bevel-outset rounded-sm flex items-center justify-center text-2xl shrink-0 shadow-sm">
-                    🏢
+                  <div className="w-12 h-12 bevel-outset rounded-sm shrink-0 shadow-sm overflow-hidden">
+                    <img
+                      src={profileIcon}
+                      alt="Studio"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div className="min-w-0">
                     <h2 className="font-bold text-sm text-[#003399] leading-tight truncate uppercase tracking-tighter">
@@ -87,16 +111,6 @@ export const Dashboard: React.FC<Props> = ({ state, onAdvance }) => {
                       {state.reputation}%
                     </span>
                   </div>
-                </div>
-
-                <div className="mt-auto">
-                  <RetroButton
-                    variant="primary"
-                    onClick={onAdvance}
-                    className="w-full h-10 bg-gradient-to-b from-[#40c340] to-[#128a12] !text-white !border-white text-[11px] font-black uppercase shadow-lg"
-                  >
-                    ADVANCE FISCAL CALENDAR
-                  </RetroButton>
                 </div>
               </div>
             </div>

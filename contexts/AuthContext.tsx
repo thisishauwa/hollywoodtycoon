@@ -39,41 +39,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
 
   // Fetch user profile
-  const fetchProfile = async (userId: string) => {
-    console.log("Fetching profile for user:", userId);
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
     try {
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Profile fetch timeout")), 5000)
-      );
-
-      const fetchPromise = supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .single();
 
-      const { data, error } = (await Promise.race([
-        fetchPromise,
-        timeoutPromise,
-      ])) as any;
-
       if (error) {
-        console.error("Error fetching profile:", error);
-        console.error("Error code:", error.code);
-        console.error("Error message:", error.message);
-        // Profile doesn't exist yet, that's okay
-        setProfile(null);
-        console.log("Profile set to null due to error");
-        return;
+        console.error("Profile fetch error:", error);
+        return null;
       }
 
-      console.log("Profile fetched successfully:", data);
-      setProfile(data);
+      if (!data) {
+        console.error("No profile data returned");
+        return null;
+      }
+
+      return data;
     } catch (error) {
-      console.error("Caught error fetching profile:", error);
-      setProfile(null);
-      console.log("Profile set to null due to caught error");
+      console.error("Profile fetch exception:", error);
+      return null;
     }
   };
 
@@ -82,31 +69,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     let mounted = true;
 
     const initAuth = async () => {
+      console.log("🔄 Starting auth initialization...");
       try {
-        // Get initial session
+        // Add timeout to prevent infinite hang
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Session fetch timeout")), 5000)
+        );
+
         const {
           data: { session },
-          error,
-        } = await supabase.auth.getSession();
+        } = (await Promise.race([sessionPromise, timeoutPromise])) as any;
 
-        if (!mounted) return;
+        console.log("Session check:", session ? "Found" : "None");
 
-        if (error) {
-          console.error("Error getting session:", error);
-          setLoading(false);
+        if (!mounted) {
+          console.log("Component unmounted, aborting");
           return;
         }
 
-        setSession(session);
-        setUser(session?.user ?? null);
-
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          console.log("User found:", session.user.email);
+          setSession(session);
+          setUser(session.user);
+          console.log("Fetching profile...");
+          const profileData = await fetchProfile(session.user.id);
+          console.log("Profile result:", profileData ? "Success" : "Failed");
+          setProfile(profileData);
+        } else {
+          console.log("No session, clearing state");
+          setSession(null);
+          setUser(null);
+          setProfile(null);
         }
       } catch (error) {
-        console.error("Error initializing auth:", error);
+        console.error("❌ Error initializing auth:", error);
       } finally {
         if (mounted) {
+          console.log("✅ Setting loading to false");
           setLoading(false);
         }
       }
@@ -120,20 +120,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
 
-      console.log("Auth state changed:", _event, !!session?.user);
-
+      // Don't show loading screen for auth changes, just update state
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        const profileData = await fetchProfile(session.user.id);
+        setProfile(profileData);
       } else {
         setProfile(null);
       }
-
-      // IMPORTANT: Set loading to false after handling auth change
-      console.log("Setting loading to false after auth change");
-      setLoading(false);
     });
 
     return () => {
@@ -159,19 +155,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (error) return { error };
 
-    // Update profile with username
+    // Create profile with username
     if (data.user) {
       try {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({ username })
-          .eq("id", data.user.id);
+        const { error: profileError } = await supabase.from("profiles").insert({
+          id: data.user.id,
+          username,
+          industry_clout: 30,
+        });
 
         if (profileError) {
-          console.error("Error updating profile:", profileError);
+          console.error("Error creating profile:", profileError);
+          return { error: profileError };
         }
       } catch (err) {
-        console.error("Error in profile update:", err);
+        console.error("Error in profile creation:", err);
       }
     }
 

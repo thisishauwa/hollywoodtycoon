@@ -1,0 +1,16 @@
+-- Seed initial scripts into the market
+-- Run this in Supabase SQL Editor AFTER running the main schema
+
+INSERT INTO scripts (id, title, genre, quality, complexity, base_cost, description, tagline, required_cast, tone) VALUES
+('s1', 'Memory Lane', 'Romance', 92, 85, 800000, 'Two strangers meet at a memory clinic where people can selectively erase painful experiences. As they fall in love, they must decide if forgetting the past is worth losing their future.', 'Some memories are worth keeping.', 2, 'Melancholic'),
+('s2', 'The Double Cross', 'Thriller', 95, 90, 1200000, 'A detective infiltrates a crime syndicate while unknowingly hunting another undercover agent. When their identities collide, loyalty becomes a deadly game.', 'Trust no one. Suspect everyone.', 3, 'Serious'),
+('s3', 'Road to Starlight', 'Comedy', 88, 65, 450000, 'A dysfunctional family embarks on a chaotic cross-country road trip to support their youngest member''s dream of competing in a national talent show.', 'Every family has its bumps.', 2, 'Lighthearted'),
+('s4', 'Desert Fortune', 'Thriller', 96, 88, 950000, 'A welder stumbles upon a briefcase full of cash in the desert, triggering a cat-and-mouse chase with a relentless hitman who never stops hunting.', 'Some money costs more than it''s worth.', 2, 'Serious'),
+('s5', 'Last Night Out', 'Comedy', 82, 55, 350000, 'Two best friends attempt one final epic party before graduating high school, but everything that can go wrong does.', 'One night. Zero limits.', 2, 'Lighthearted'),
+('s6', 'Black Gold', 'Drama', 98, 92, 1500000, 'An oil prospector''s ruthless ambition destroys everyone around him as he builds an empire in the California desert at the turn of the century.', 'Greed has no limits.', 2, 'Serious'),
+('s7', 'Nine Months Later', 'Comedy', 85, 60, 400000, 'A quirky teenager navigates an unexpected pregnancy with humor and heart, finding family in the most unlikely places.', 'Growing up happens faster than you think.', 2, 'Lighthearted'),
+('s8', 'The Illusionists', 'Thriller', 90, 87, 750000, 'Two rival magicians in Victorian London become obsessed with creating the perfect trick, sacrificing everything in their dangerous competition.', 'Every great magic trick has a price.', 2, 'Serious'),
+('s9', 'The Faun''s Maze', 'Fantasy', 94, 85, 900000, 'A young girl escapes into a dark fairy tale world to cope with the horrors of war-torn Spain, where mythical creatures offer both danger and salvation.', 'Where nightmares and fairy tales meet.', 2, 'Dark'),
+('s10', 'Million Dollar Question', 'Drama', 91, 78, 650000, 'A street kid from Mumbai becomes a game show sensation, but his incredible winning streak leads to accusations of cheating and a journey through his extraordinary past.', 'Every answer tells a story.', 2, 'Uplifting'),
+('s11', 'The Ghost Protocol', 'Action', 87, 75, 600000, 'An amnesiac operative washes ashore with no memory but deadly skills. As assassins close in, he must piece together his identity before it''s too late.', 'He doesn''t know who he is. They know who he was.', 2, 'Serious'),
+('s12', 'Unexpected Delivery', 'Romance', 78, 50, 300000, 'A one-night stand turns into a nine-month commitment when two polar opposites must figure out if they can build a relationship while building a family.', 'Life''s biggest surprise.', 2, 'Lighthearted');

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { GameState, ProjectStatus, StudioMessage, GameEvent } from "./types";
 import {
   SEED_ACTORS,
@@ -25,7 +25,14 @@ import { MagazineWindow } from "./components/MagazineWindow";
 import { StudioNetwork } from "./components/StudioNetwork";
 import { StartMenu } from "./components/StartMenu";
 import { AuthScreen } from "./components/AuthScreen";
+import { WindowsXPLoader } from "./components/WindowsXPLoader";
+import { ScriptMarketMultiplayer } from "./components/ScriptMarketMultiplayer";
 import { useAuth } from "./contexts/AuthContext";
+import { useStudios } from "./hooks/useStudios";
+import { useGameState } from "./hooks/useGameState";
+import { useOwnedScripts } from "./hooks/useOwnedScripts";
+import { useEvents } from "./hooks/useEvents";
+import { supabase } from "./lib/supabase";
 
 const uuid = () =>
   "id-" +
@@ -44,19 +51,28 @@ const App: React.FC = () => {
   const { user, profile, loading, signIn, signUp, signOut } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Multiplayer hooks
+  const { gameState: multiplayerGameState, loading: gameStateLoading } =
+    useGameState();
+  const { ownedScripts: multiplayerOwnedScripts } = useOwnedScripts();
+  const { events: multiplayerEvents } = useEvents();
+  const { studios: realStudios, loading: studiosLoading } = useStudios(
+    user?.id
+  );
+
   const [gameState, setGameState] = useState<GameState>({
     month: START_MONTH,
     year: START_YEAR,
     balance: INITIAL_BALANCE,
-    reputation: 50,
+    reputation: profile?.industry_clout || 30,
     actors: SEED_ACTORS,
     marketScripts: SEED_SCRIPTS,
     ownedScripts: [],
     projects: [],
-    rivals: RIVAL_STUDIOS,
+    rivals: [], // Will be populated from realStudios
     events: [],
-    playerName: profile?.username || "EXEC_01",
-    studioName: profile?.username || "StarVision Global",
+    playerName: profile?.username || "Studio",
+    studioName: profile?.username || "Studio",
     messages: [],
   });
 
@@ -104,36 +120,51 @@ const App: React.FC = () => {
       }));
   }, [windows, activeWindowId]);
 
-  // Debug logging
-  console.log("Auth State:", { user: !!user, profile: !!profile, loading });
+  // Update rivals when real studios are loaded
+  useEffect(() => {
+    if (realStudios.length > 0) {
+      setGameState((prev) => ({
+        ...prev,
+        rivals: realStudios,
+      }));
+    }
+  }, [realStudios]);
 
-  // Show loading screen while checking auth
+  // Update reputation when profile changes
+  useEffect(() => {
+    if (profile) {
+      setGameState((prev) => ({
+        ...prev,
+        reputation: profile.industry_clout,
+        playerName: profile.username,
+        studioName: profile.username,
+      }));
+    }
+  }, [profile]);
+
+  // Auto-close expired auctions every 30 seconds
+  useEffect(() => {
+    if (!user) return;
+
+    const closeExpiredAuctions = async () => {
+      const { error } = await supabase.rpc("close_expired_auctions");
+      if (error) {
+        console.error("Error closing auctions:", error);
+      }
+    };
+
+    // Run immediately on mount
+    closeExpiredAuctions();
+
+    // Then every 30 seconds
+    const interval = setInterval(closeExpiredAuctions, 30000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Show loading screen ONLY while checking auth (not game state)
   if (loading) {
-    return (
-      <div
-        className="fixed inset-0 flex flex-col items-center justify-center"
-        style={{
-          background: "linear-gradient(180deg, #5a7fb8 0%, #3a5f8f 100%)",
-        }}
-      >
-        <div className="flex flex-col items-center">
-          <img
-            src="/images/82099ace911ce53ef05dd5dc28fa051c.png"
-            alt="Windows XP"
-            className="h-32 mb-12 object-contain"
-          />
-          <div className="w-64 h-2 bg-black/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-blue-400 to-blue-600 animate-pulse"
-              style={{ width: "70%" }}
-            ></div>
-          </div>
-          <p className="text-white text-sm mt-4 font-['Tahoma']">
-            Loading your studio...
-          </p>
-        </div>
-      </div>
-    );
+    return <WindowsXPLoader />;
   }
 
   // Show auth screen if not logged in
@@ -156,21 +187,10 @@ const App: React.FC = () => {
     );
   }
 
-  // If user exists but profile doesn't (and we're not loading), show error
-  if (!profile && !loading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#5a7fb8]">
-        <div className="text-white text-center">
-          <p className="text-xl mb-4">Profile not found</p>
-          <button
-            onClick={signOut}
-            className="px-4 py-2 bg-white text-blue-900 rounded"
-          >
-            Sign Out
-          </button>
-        </div>
-      </div>
-    );
+  // If user exists but profile doesn't, just show loading (profile might be fetching)
+  // Only show error after a reasonable timeout
+  if (!profile && user) {
+    return <WindowsXPLoader />;
   }
 
   const focusWindow = (id: string) => {
@@ -213,6 +233,8 @@ const App: React.FC = () => {
       return { ...prev, marketScripts: updatedScripts };
     });
 
+    // Rival counter-bid chance (within 5 seconds)
+    const rivalBidDelay = Math.random() * 3000 + 2000; // 2-5 seconds
     setTimeout(() => {
       if (Math.random() > 0.4) {
         setGameState((prev) => {
@@ -247,7 +269,75 @@ const App: React.FC = () => {
           };
         });
       }
-    }, 1200);
+    }, rivalBidDelay);
+
+    // Auto-close auction after 30 seconds
+    setTimeout(() => {
+      setGameState((prev) => {
+        const script = prev.marketScripts.find((s) => s.id === scriptId);
+        if (!script) return prev;
+
+        // If player is still high bidder, they win!
+        if (script.highBidderId === "player") {
+          // Check if player can afford it
+          if (prev.balance < script.currentBid) {
+            const insufficientFundsEvent: GameEvent = {
+              id: uuid(),
+              month: prev.month,
+              type: "BAD",
+              message: `AUCTION FAILED: Insufficient funds for "${
+                script.title
+              }". Need $${script.currentBid.toLocaleString()}.`,
+              read: false,
+            };
+            return {
+              ...prev,
+              marketScripts: prev.marketScripts.filter(
+                (s) => s.id !== scriptId
+              ),
+              events: [...prev.events, insufficientFundsEvent],
+            };
+          }
+
+          // Player wins!
+          const wonEvent: GameEvent = {
+            id: uuid(),
+            month: prev.month,
+            type: "GOOD",
+            message: `AUCTION WON: Rights to "${
+              script.title
+            }" secured for $${script.currentBid.toLocaleString()}!`,
+            read: false,
+          };
+
+          return {
+            ...prev,
+            balance: prev.balance - script.currentBid,
+            ownedScripts: [...prev.ownedScripts, script],
+            marketScripts: prev.marketScripts.filter((s) => s.id !== scriptId),
+            events: [...prev.events, wonEvent],
+          };
+        } else {
+          // Rival won, remove from market
+          const lostEvent: GameEvent = {
+            id: uuid(),
+            month: prev.month,
+            type: "BAD",
+            message: `AUCTION LOST: "${script.title}" went to ${
+              prev.rivals.find((r) => r.id === script.highBidderId)?.name ||
+              "another studio"
+            }.`,
+            read: false,
+          };
+
+          return {
+            ...prev,
+            marketScripts: prev.marketScripts.filter((s) => s.id !== scriptId),
+            events: [...prev.events, lostEvent],
+          };
+        }
+      });
+    }, 30000); // 30 seconds
   };
 
   const handleSendMoney = (studioId: string, amount: number) => {
@@ -468,21 +558,8 @@ const App: React.FC = () => {
                 )}
 
                 <div className="flex-1 overflow-hidden h-full">
-                  {activeTab === "dashboard" && (
-                    <Dashboard
-                      state={gameState}
-                      onAdvance={handleAdvanceMonth}
-                    />
-                  )}
-                  {activeTab === "scripts" && (
-                    <ScriptMarket
-                      marketScripts={gameState.marketScripts}
-                      ownedScripts={gameState.ownedScripts}
-                      balance={gameState.balance}
-                      rivals={gameState.rivals}
-                      onBid={handlePlayerBid}
-                    />
-                  )}
+                  {activeTab === "dashboard" && <Dashboard state={gameState} />}
+                  {activeTab === "scripts" && <ScriptMarketMultiplayer />}
                   {activeTab === "actors" && (
                     <ActorDb actors={gameState.actors} />
                   )}

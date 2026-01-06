@@ -3,6 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+console.log("Supabase URL:", supabaseUrl);
+console.log(
+  "Supabase Key:",
+  supabaseAnonKey ? "✅ Loaded (hidden)" : "❌ Missing"
+);
+
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
     "Missing Supabase environment variables. Please check your .env.local file."
@@ -16,6 +22,7 @@ export interface Profile {
   id: string;
   username: string;
   avatar_url: string | null;
+  industry_clout?: number; // Optional until migration is run
   created_at: string;
   updated_at: string;
 }
