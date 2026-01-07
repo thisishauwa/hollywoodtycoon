@@ -1,26 +1,78 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { RetroButton, RetroInput } from "./RetroUI";
 import { useScripts } from "../hooks/useScripts";
 import { useBids } from "../hooks/useBids";
 import { useAllBids } from "../hooks/useAllBids";
 import { useGameState } from "../hooks/useGameState";
 
+// Countdown timer component for bids
+const BidCountdown: React.FC<{ expiresAt: string }> = ({ expiresAt }) => {
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      const expiry = new Date(expiresAt).getTime();
+      return Math.max(0, Math.floor((expiry - now) / 1000));
+    };
+
+    setTimeLeft(calculateTimeLeft());
+
+    const interval = setInterval(() => {
+      const remaining = calculateTimeLeft();
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  if (timeLeft <= 0) {
+    return <span className="text-red-600 font-bold animate-pulse">CLOSING...</span>;
+  }
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <span className={`font-mono font-bold ${timeLeft <= 10 ? "text-red-600 animate-pulse" : "text-orange-600"}`}>
+      {minutes}:{seconds.toString().padStart(2, "0")}
+    </span>
+  );
+};
+
 export const ScriptMarketMultiplayer: React.FC = () => {
   const { scripts, loading: scriptsLoading } = useScripts();
-  const { gameState } = useGameState();
+  const { gameState, loading: gameStateLoading } = useGameState();
   const [selectedScriptId, setSelectedScriptId] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState<number>(0);
 
   // Get all bids for all scripts
-  const { bidsByScript, getHighestBidForScript, isUserHighBidderForScript } =
+  const { bidsByScript, getHighestBidForScript, isUserHighBidderForScript, refetch: refetchAllBids } =
     useAllBids();
 
-  // Get bids for selected script (for detail view)
+  // Get bids for selected script (for placing bids)
   const {
-    bids: selectedScriptBids,
     placing,
     placeBid,
   } = useBids(selectedScriptId || undefined);
+
+  // Flatten all bids for live feed, sorted by time (newest first)
+  const allBidsFlat = useMemo(() => {
+    const allBids: Array<{ id: string; script_id: string; username: string; amount: number; created_at: string; expires_at: string; scriptTitle?: string }> = [];
+    Object.entries(bidsByScript).forEach(([scriptId, bids]) => {
+      const script = scripts.find(s => s.id === scriptId);
+      bids.forEach(bid => {
+        allBids.push({
+          ...bid,
+          scriptTitle: script?.title || "Unknown Script",
+        });
+      });
+    });
+    return allBids.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [bidsByScript, scripts]);
 
   const handleStartBid = (scriptId: string, baseCost: number) => {
     setSelectedScriptId(scriptId);
@@ -36,6 +88,9 @@ export const ScriptMarketMultiplayer: React.FC = () => {
       alert(`Failed to place bid: ${error}`);
       return;
     }
+
+    // Refetch all bids to update the main list immediately
+    await refetchAllBids();
 
     // Reset
     setSelectedScriptId(null);
@@ -167,35 +222,56 @@ export const ScriptMarketMultiplayer: React.FC = () => {
 
                       {/* Bidding Interface */}
                       {selectedScriptId === script.id ? (
-                        <div className="flex gap-2 items-center">
-                          <RetroInput
-                            type="number"
-                            value={bidAmount}
-                            onChange={(e) =>
-                              setBidAmount(parseInt(e.target.value) || 0)
-                            }
-                            className="flex-1"
-                            placeholder="Enter bid amount"
-                            min={currentPrice + 10000}
-                          />
-                          <RetroButton
-                            onClick={handlePlaceBid}
-                            variant="primary"
-                            isLoading={placing}
-                            disabled={
-                              bidAmount <= currentPrice ||
-                              !gameState ||
-                              bidAmount > gameState.balance
-                            }
-                            className="!bg-[#38d438] !text-white !border-white"
-                          >
-                            {placing ? "PLACING..." : "PLACE BID"}
-                          </RetroButton>
-                          <RetroButton
-                            onClick={() => setSelectedScriptId(null)}
-                          >
-                            CANCEL
-                          </RetroButton>
+                        <div className="space-y-2">
+                          <div className="flex gap-2 items-center">
+                            <RetroInput
+                              type="number"
+                              value={bidAmount}
+                              onChange={(e) =>
+                                setBidAmount(parseInt(e.target.value) || 0)
+                              }
+                              className="flex-1"
+                              placeholder="Enter bid amount"
+                              min={currentPrice + 1}
+                            />
+                            <RetroButton
+                              onClick={handlePlaceBid}
+                              variant="primary"
+                              isLoading={placing}
+                              disabled={
+                                placing ||
+                                bidAmount <= currentPrice ||
+                                gameStateLoading ||
+                                !gameState ||
+                                bidAmount > gameState.balance
+                              }
+                              className="!bg-[#38d438] !text-white !border-white"
+                            >
+                              {placing ? "PLACING..." : "PLACE BID"}
+                            </RetroButton>
+                            <RetroButton
+                              onClick={() => setSelectedScriptId(null)}
+                            >
+                              CANCEL
+                            </RetroButton>
+                          </div>
+                          {/* Show why disabled */}
+                          {gameStateLoading && (
+                            <p className="text-[9px] text-orange-600">Loading your balance...</p>
+                          )}
+                          {!gameStateLoading && !gameState && (
+                            <p className="text-[9px] text-red-600">Error loading game state. Try refreshing.</p>
+                          )}
+                          {gameState && bidAmount > gameState.balance && (
+                            <p className="text-[9px] text-red-600">
+                              Insufficient funds. Your balance: ${gameState.balance.toLocaleString()}
+                            </p>
+                          )}
+                          {bidAmount <= currentPrice && bidAmount > 0 && (
+                            <p className="text-[9px] text-red-600">
+                              Bid must be higher than ${currentPrice.toLocaleString()}
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <RetroButton
@@ -204,6 +280,7 @@ export const ScriptMarketMultiplayer: React.FC = () => {
                           }
                           variant="primary"
                           className="w-full"
+                          disabled={gameStateLoading}
                         >
                           {highestBid ? "COUNTER BID" : "PLACE BID"}
                         </RetroButton>
@@ -221,38 +298,50 @@ export const ScriptMarketMultiplayer: React.FC = () => {
       <div className="md:col-span-4 h-full flex flex-col min-h-0">
         <div className="flex flex-col h-full bg-[#ece9d8] bevel-outset overflow-hidden">
           <div className="bg-[#0058ee] p-2 text-center text-[10px] font-bold text-white uppercase tracking-widest shrink-0">
-            LIVE BID FEED
+            LIVE BID FEED ({allBidsFlat.length})
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-white">
-            {selectedScriptId && selectedScriptBids.length > 0 ? (
-              selectedScriptBids.map((bid, index) => (
-                <div
-                  key={bid.id}
-                  className={`p-2 bevel-outset text-xs ${
-                    index === 0 ? "bg-yellow-100" : "bg-gray-50"
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-[#003399]">
-                      {bid.username}
-                    </span>
-                    {index === 0 && (
-                      <span className="text-[8px] bg-green-600 text-white px-1 py-0.5 rounded">
-                        HIGHEST
+            {allBidsFlat.length > 0 ? (
+              allBidsFlat.map((bid) => {
+                const isHighest = getHighestBidForScript(bid.script_id)?.id === bid.id;
+                return (
+                  <div
+                    key={bid.id}
+                    className={`p-2 bevel-outset text-xs ${
+                      isHighest ? "bg-yellow-100" : "bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-[#003399]">
+                        {bid.username}
                       </span>
-                    )}
+                      {isHighest && (
+                        <span className="text-[8px] bg-green-600 text-white px-1 py-0.5 rounded">
+                          HIGHEST
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[9px] text-purple-700 font-medium truncate" title={bid.scriptTitle}>
+                      {bid.scriptTitle}
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-green-700 font-bold">
+                        ${bid.amount.toLocaleString()}
+                      </span>
+                      {isHighest && bid.expires_at && (
+                        <BidCountdown expiresAt={bid.expires_at} />
+                      )}
+                    </div>
+                    <div className="text-[9px] text-gray-500">
+                      {new Date(bid.created_at).toLocaleTimeString()}
+                    </div>
                   </div>
-                  <div className="text-green-700 font-bold">
-                    ${bid.amount.toLocaleString()}
-                  </div>
-                  <div className="text-[9px] text-gray-500">
-                    {new Date(bid.created_at).toLocaleTimeString()}
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="text-center text-gray-400 mt-8 text-xs">
-                <p>Select a script to see bids</p>
+                <p>No bids yet</p>
+                <p className="mt-1">Be the first to bid!</p>
               </div>
             )}
           </div>

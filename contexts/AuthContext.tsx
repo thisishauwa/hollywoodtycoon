@@ -39,21 +39,31 @@ export const useAuth = () => {
   return context;
 };
 
-// Helper: Fetch or create profile using upsert
+// Helper: Fetch or create profile with timeout
 async function getOrCreateProfile(userId: string, email: string): Promise<Profile | null> {
   const defaultUsername = email?.split("@")[0] || "Studio";
   console.log("[Auth] getOrCreateProfile called for:", userId);
 
+  // Add timeout to prevent infinite hanging
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("Profile fetch timeout")), 8000);
+  });
+
   try {
-    // Try to fetch existing profile first
     console.log("[Auth] Fetching profile...");
-    const { data: existing, error: fetchError } = await supabase
+
+    const fetchPromise = supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
 
-    console.log("[Auth] Profile fetch result:", { existing, fetchError });
+    const { data: existing, error: fetchError } = await Promise.race([
+      fetchPromise,
+      timeoutPromise,
+    ]) as any;
+
+    console.log("[Auth] Profile fetch result:", { existing, fetchError: fetchError?.message });
 
     if (existing) {
       return existing;
@@ -72,7 +82,7 @@ async function getOrCreateProfile(userId: string, email: string): Promise<Profil
         .select()
         .single();
 
-      console.log("[Auth] Profile create result:", { created, createError });
+      console.log("[Auth] Profile create result:", { created, createError: createError?.message });
 
       if (createError) {
         console.error("[Auth] Failed to create profile:", createError);
@@ -83,8 +93,8 @@ async function getOrCreateProfile(userId: string, email: string): Promise<Profil
 
     console.error("[Auth] Failed to fetch profile:", fetchError);
     return null;
-  } catch (err) {
-    console.error("[Auth] getOrCreateProfile error:", err);
+  } catch (err: any) {
+    console.error("[Auth] getOrCreateProfile error:", err?.message || err);
     return null;
   }
 }
@@ -99,27 +109,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   useEffect(() => {
     let mounted = true;
+    let initComplete = false;
 
     const initAuth = async () => {
       try {
         console.log("[Auth] initAuth starting...");
 
-        // TEMPORARY: Clear any stale sessions to unstick the app
-        // Remove this once Supabase connectivity is confirmed working
-        const hasStaleSession = Object.keys(localStorage).some(k => k.startsWith('sb-'));
-        if (hasStaleSession) {
-          console.log("[Auth] Clearing stale localStorage session");
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('sb-')) {
-              localStorage.removeItem(key);
-            }
-          });
-          setLoading(false);
-          return; // Start fresh - user will need to sign in
-        }
-
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        console.log("[Auth] getSession result:", { hasSession: !!session, sessionError });
+        console.log("[Auth] getSession result:", { hasSession: !!session, error: sessionError?.message });
 
         if (!mounted) return;
 
@@ -128,18 +125,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           setSession(session);
           setUser(session.user);
 
-          const profile = await getOrCreateProfile(session.user.id, session.user.email || "");
-          console.log("[Auth] Profile result:", profile);
+          const fetchedProfile = await getOrCreateProfile(session.user.id, session.user.email || "");
+          console.log("[Auth] Profile loaded:", fetchedProfile?.username);
           if (mounted) {
-            setProfile(profile);
+            setProfile(fetchedProfile);
           }
         } else {
           console.log("[Auth] No session found");
         }
-      } catch (error) {
-        console.error("[Auth] Init error:", error);
+      } catch (error: any) {
+        console.error("[Auth] Init error:", error?.message || error);
       } finally {
         if (mounted) {
+          initComplete = true;
           console.log("[Auth] Setting loading to false");
           setLoading(false);
         }
@@ -148,24 +146,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
     initAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes AFTER initial load
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event, newSession) => {
+        console.log("[Auth] onAuthStateChange:", event, "initComplete:", initComplete);
         if (!mounted) return;
 
-        setSession(session);
-        setUser(session?.user ?? null);
+        // Skip events during initial auth - initAuth handles it
+        if (!initComplete) {
+          console.log("[Auth] Skipping (init not complete)");
+          return;
+        }
 
-        if (session?.user) {
-          const profile = await getOrCreateProfile(session.user.id, session.user.email || "");
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        if (newSession?.user) {
+          const fetchedProfile = await getOrCreateProfile(newSession.user.id, newSession.user.email || "");
           if (mounted) {
-            setProfile(profile);
+            setProfile(fetchedProfile);
           }
         } else {
           setProfile(null);
         }
 
-        // Ensure loading is false after any auth change
         setLoading(false);
       }
     );

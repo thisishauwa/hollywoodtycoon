@@ -54,7 +54,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   return (
     <div
-      className="fixed inset-0 flex flex-col"
+      className={`fixed inset-0 flex flex-col ${isLoading ? 'cursor-wait' : ''}`}
       style={{ fontFamily: "'Source Sans Pro', Tahoma, sans-serif" }}
     >
       {/* Header with gradient line */}

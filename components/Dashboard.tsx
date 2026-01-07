@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { GameState } from "../types";
-import { WindowFrame, RetroProgressBar, RetroButton } from "./RetroUI";
+import { RetroProgressBar } from "./RetroUI";
+import { useGameState } from "../hooks/useGameState";
+import { useOwnedScripts } from "../hooks/useOwnedScripts";
+import { useAuth } from "../contexts/AuthContext";
 
 // Windows XP Profile Icons
 const PROFILE_ICONS = [
@@ -43,6 +46,20 @@ const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
 };
 
 export const Dashboard: React.FC<Props> = ({ state }) => {
+  // Get real data from Supabase
+  const { profile } = useAuth();
+  const { gameState: supabaseGameState } = useGameState();
+  const { ownedScripts } = useOwnedScripts();
+
+  // Use Supabase balance if available, fallback to local state
+  const currentBalance = supabaseGameState?.balance ?? state.balance;
+  const currentReputation = supabaseGameState?.reputation ?? state.reputation;
+  const studioName = profile?.username ?? state.studioName;
+
+  // Count movies made (owned scripts represent acquired IPs, projects with Released status are movies)
+  const moviesReleased = state.projects.filter(p => p.status === "Released").length;
+  const scriptsOwned = ownedScripts.length;
+
   // Generate random profile icon once
   const [profileIcon] = useState(
     () => PROFILE_ICONS[Math.floor(Math.random() * PROFILE_ICONS.length)]
@@ -50,8 +67,8 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
 
   const allStudios = [
     {
-      name: state.studioName,
-      revenue: state.balance,
+      name: studioName,
+      revenue: currentBalance,
       id: "player",
       color: "#0058ee",
     },
@@ -86,7 +103,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                   </div>
                   <div className="min-w-0">
                     <h2 className="font-bold text-sm text-[#003399] leading-tight truncate uppercase tracking-tighter">
-                      {state.studioName}
+                      {studioName}
                     </h2>
                     <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">
                       Active Session
@@ -100,7 +117,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                       Balance
                     </span>
                     <span className="font-bold text-sm text-green-700 font-mono">
-                      ${state.balance.toLocaleString()}
+                      ${currentBalance.toLocaleString()}
                     </span>
                   </div>
                   <div className="bg-white border border-[#808080] p-2 shadow-inner flex justify-between items-center">
@@ -108,14 +125,66 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                       Industry Clout
                     </span>
                     <span className="font-bold text-sm text-blue-700">
-                      {state.reputation}%
+                      {currentReputation}%
                     </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white border border-[#808080] p-2 shadow-inner flex flex-col items-center">
+                      <span className="text-[9px] text-[#808080] font-bold uppercase">
+                        Scripts
+                      </span>
+                      <span className="font-bold text-sm text-purple-700">
+                        {scriptsOwned}
+                      </span>
+                    </div>
+                    <div className="bg-white border border-[#808080] p-2 shadow-inner flex flex-col items-center">
+                      <span className="text-[9px] text-[#808080] font-bold uppercase">
+                        Movies
+                      </span>
+                      <span className="font-bold text-sm text-orange-600">
+                        {moviesReleased}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="h-64 shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
+            {/* Recently Won Auctions */}
+            <div className="h-32 shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
+              <div className="bg-[#38d438] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
+                Your Script Library ({scriptsOwned})
+              </div>
+              <div className="flex-1 flex flex-col bg-white overflow-y-auto p-2 space-y-1">
+                {ownedScripts.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-[10px] text-center opacity-40 py-2">
+                    <p className="italic">NO SCRIPTS YET</p>
+                    <p className="text-[8px]">Win auctions to acquire scripts!</p>
+                  </div>
+                ) : (
+                  ownedScripts.slice(0, 3).map((script) => (
+                    <div
+                      key={script.id}
+                      className="p-1.5 border border-green-200 bg-green-50 flex justify-between items-center"
+                    >
+                      <div className="truncate">
+                        <span className="text-[10px] font-bold text-[#003399]">
+                          {script.title}
+                        </span>
+                        <span className="text-[8px] text-gray-500 ml-2">
+                          {script.genre}
+                        </span>
+                      </div>
+                      <span className="text-[8px] font-bold text-green-700">
+                        ${script.purchase_price?.toLocaleString() || "N/A"}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="h-32 shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
               <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
                 Live Stages
               </div>
@@ -123,7 +192,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                 {state.projects.filter(
                   (p) => p.status !== "Released" && p.studioId === "player"
                 ).length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-[10px] text-center opacity-40 py-8">
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-[10px] text-center opacity-40 py-2">
                     <p className="italic">NO ACTIVE PRODUCTIONS</p>
                   </div>
                 ) : (

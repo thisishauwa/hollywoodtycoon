@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -10,7 +10,7 @@ export interface Bid {
   is_active: boolean;
   created_at: string;
   expires_at: string;
-  username?: string; // Joined from profiles
+  username?: string;
 }
 
 export const useBids = (scriptId?: string) => {
@@ -19,52 +19,62 @@ export const useBids = (scriptId?: string) => {
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
 
-  useEffect(() => {
+  const fetchBids = useCallback(async () => {
     if (!scriptId) {
       setBids([]);
       setLoading(false);
       return;
     }
 
-    const fetchBids = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("bids")
-          .select("*")
-          .eq("script_id", scriptId)
-          .eq("is_active", true)
-          .order("amount", { ascending: false });
+    try {
+      // Fetch bids for this script
+      const { data: bidsData, error: bidsError } = await supabase
+        .from("bids")
+        .select("*")
+        .eq("script_id", scriptId)
+        .eq("is_active", true)
+        .order("amount", { ascending: false });
 
-        if (error) {
-          console.error("Error fetching bids:", error);
-          return;
-        }
-
-        // Fetch usernames for all bids
-        const bidsWithUsernames = await Promise.all(
-          (data || []).map(async (bid: any) => {
-            const { data: profileData } = await supabase
-              .from("profiles")
-              .select("username")
-              .eq("id", bid.user_id)
-              .single();
-
-            return {
-              ...bid,
-              username: profileData?.username || "Unknown",
-            };
-          })
-        );
-
-        setBids(bidsWithUsernames);
-      } catch (error) {
-        console.error("Error in fetchBids:", error);
-      } finally {
-        setLoading(false);
+      if (bidsError) {
+        console.error("[Bids] Error fetching bids:", bidsError);
+        return;
       }
-    };
 
+      // Get usernames for bidders
+      const userIds = [...new Set((bidsData || []).map((b: any) => b.user_id))];
+      let usernameMap: Record<string, string> = {};
+
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, username")
+          .in("id", userIds);
+
+        if (profilesData) {
+          usernameMap = Object.fromEntries(
+            profilesData.map((p: any) => [p.id, p.username])
+          );
+        }
+      }
+
+      // Transform to include username
+      const bidsWithUsernames = (bidsData || []).map((bid: any) => ({
+        ...bid,
+        username: usernameMap[bid.user_id] || "Unknown",
+      }));
+
+      setBids(bidsWithUsernames);
+    } catch (error) {
+      console.error("[Bids] Error in fetchBids:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [scriptId]);
+
+  useEffect(() => {
     fetchBids();
+
+    if (!scriptId) return;
 
     // Subscribe to real-time bid updates
     const subscription = supabase
@@ -77,40 +87,22 @@ export const useBids = (scriptId?: string) => {
           table: "bids",
           filter: `script_id=eq.${scriptId}`,
         },
-        async (payload) => {
-          if (
-            payload.eventType === "INSERT" ||
-            payload.eventType === "UPDATE"
-          ) {
-            // Fetch username for the bid
-            const { data: profileData } = await supabase
-              .from("profiles")
-              .select("username")
-              .eq("id", (payload.new as any).user_id)
-              .single();
-
-            const newBid = {
-              ...(payload.new as Bid),
-              username: profileData?.username || "Unknown",
-            };
-
-            setBids((prev) => {
-              const filtered = prev.filter((b) => b.id !== newBid.id);
-              return [newBid, ...filtered].sort((a, b) => b.amount - a.amount);
-            });
-          } else if (payload.eventType === "DELETE") {
-            setBids((prev) => prev.filter((b) => b.id !== payload.old.id));
-          }
+        (payload) => {
+          console.log("[Bids] Real-time update for script:", scriptId, payload.eventType);
+          // Refetch to get the latest data with usernames
+          fetchBids();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[Bids] Subscription status for", scriptId, ":", status);
+      });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [scriptId]);
+  }, [scriptId, fetchBids]);
 
-  const placeBid = async (scriptId: string, amount: number) => {
+  const placeBid = async (targetScriptId: string, amount: number) => {
     if (!user) return { error: "Not authenticated" };
 
     setPlacing(true);
@@ -120,7 +112,7 @@ export const useBids = (scriptId?: string) => {
 
       const { error } = await supabase.from("bids").upsert(
         {
-          script_id: scriptId,
+          script_id: targetScriptId,
           user_id: user.id,
           amount,
           is_active: true,
@@ -132,13 +124,17 @@ export const useBids = (scriptId?: string) => {
       );
 
       if (error) {
-        console.error("Error placing bid:", error);
+        console.error("[Bids] Error placing bid:", error);
         return { error: error.message };
       }
 
+      // Immediately refetch to update the UI
+      // The real-time subscription will also trigger, but this ensures immediate feedback
+      await fetchBids();
+
       return { error: null };
     } catch (error: any) {
-      console.error("Error in placeBid:", error);
+      console.error("[Bids] Error in placeBid:", error);
       return { error: error.message };
     } finally {
       setPlacing(false);
@@ -162,5 +158,6 @@ export const useBids = (scriptId?: string) => {
     placeBid,
     getHighestBid,
     isUserHighBidder,
+    refetch: fetchBids,
   };
 };

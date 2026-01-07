@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -21,63 +21,76 @@ export const useAllBids = () => {
   >({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAllBids = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("bids")
-          .select("*")
-          .eq("is_active", true)
-          .order("amount", { ascending: false });
+  const fetchAllBids = useCallback(async () => {
+    try {
+      console.log("[Bids] Fetching all bids...");
 
-        if (error) {
-          console.error("Error fetching all bids:", error);
-          return;
-        }
+      // Fetch bids
+      const { data: bidsData, error: bidsError } = await supabase
+        .from("bids")
+        .select("*")
+        .eq("is_active", true)
+        .order("amount", { ascending: false });
 
-        // Fetch usernames for all bids
-        const bidsWithUsernames = await Promise.all(
-          (data || []).map(async (bid: any) => {
-            const { data: profileData } = await supabase
-              .from("profiles")
-              .select("username")
-              .eq("id", bid.user_id)
-              .single();
-
-            return {
-              ...bid,
-              username: profileData?.username || "Unknown",
-            };
-          })
-        );
-
-        // Group by script_id
-        const grouped: Record<string, BidWithScript[]> = {};
-        bidsWithUsernames.forEach((bid) => {
-          if (!grouped[bid.script_id]) {
-            grouped[bid.script_id] = [];
-          }
-          grouped[bid.script_id].push(bid);
-        });
-
-        // Sort each group by amount descending
-        Object.keys(grouped).forEach((scriptId) => {
-          grouped[scriptId].sort((a, b) => b.amount - a.amount);
-        });
-
-        setBidsByScript(grouped);
-      } catch (error) {
-        console.error("Error in fetchAllBids:", error);
-      } finally {
-        setLoading(false);
+      if (bidsError) {
+        console.error("[Bids] Error fetching all bids:", bidsError);
+        return;
       }
-    };
 
+      console.log("[Bids] Fetched bids:", bidsData?.length || 0);
+
+      // Get unique user IDs and fetch their usernames
+      const userIds = [...new Set((bidsData || []).map((b: any) => b.user_id))];
+      let usernameMap: Record<string, string> = {};
+
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, username")
+          .in("id", userIds);
+
+        if (profilesData) {
+          usernameMap = Object.fromEntries(
+            profilesData.map((p: any) => [p.id, p.username])
+          );
+        }
+      }
+
+      // Transform data to include username
+      const bidsWithUsernames = (bidsData || []).map((bid: any) => ({
+        ...bid,
+        username: usernameMap[bid.user_id] || "Unknown",
+      }));
+
+      // Group by script_id
+      const grouped: Record<string, BidWithScript[]> = {};
+      bidsWithUsernames.forEach((bid) => {
+        if (!grouped[bid.script_id]) {
+          grouped[bid.script_id] = [];
+        }
+        grouped[bid.script_id].push(bid);
+      });
+
+      // Sort each group by amount descending
+      Object.keys(grouped).forEach((scriptId) => {
+        grouped[scriptId].sort((a, b) => b.amount - a.amount);
+      });
+
+      setBidsByScript(grouped);
+    } catch (error) {
+      console.error("[Bids] Error in fetchAllBids:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchAllBids();
 
     // Subscribe to real-time bid updates for ALL scripts
+    console.log("[Bids] Setting up real-time subscription...");
     const subscription = supabase
-      .channel("all_bids")
+      .channel("all_bids_realtime")
       .on(
         "postgres_changes",
         {
@@ -85,17 +98,21 @@ export const useAllBids = () => {
           schema: "public",
           table: "bids",
         },
-        async (payload) => {
+        (payload) => {
+          console.log("[Bids] Real-time update received:", payload.eventType);
           // Refetch all bids when any bid changes
           fetchAllBids();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[Bids] Subscription status:", status);
+      });
 
     return () => {
+      console.log("[Bids] Cleaning up subscription");
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchAllBids]);
 
   const getHighestBidForScript = (scriptId: string) => {
     const bids = bidsByScript[scriptId];
@@ -112,5 +129,6 @@ export const useAllBids = () => {
     loading,
     getHighestBidForScript,
     isUserHighBidderForScript,
+    refetch: fetchAllBids,
   };
 };

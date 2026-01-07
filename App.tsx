@@ -50,6 +50,7 @@ interface WindowState {
 const App: React.FC = () => {
   const { user, profile, loading, signIn, signUp, signOut } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Multiplayer hooks
   const { gameState: multiplayerGameState, loading: gameStateLoading } =
@@ -162,23 +163,40 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Show auth screen if not fully authenticated (need both user AND profile)
-  const isFullyAuthenticated = user && profile && !loading;
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[#3a6ea5]">
+        <div className="text-white text-sm">Loading...</div>
+      </div>
+    );
+  }
 
-  if (!isFullyAuthenticated) {
+  // Show auth screen if not authenticated
+  if (!user) {
     return (
       <AuthScreen
         onSignIn={async (email: string, password: string) => {
           setAuthError(null);
-          const { error } = await signIn(email, password);
-          if (error) setAuthError(error.message);
+          setIsAuthenticating(true);
+          try {
+            const { error } = await signIn(email, password);
+            if (error) setAuthError(error.message);
+          } finally {
+            setIsAuthenticating(false);
+          }
         }}
         onSignUp={async (email: string, password: string, username: string) => {
           setAuthError(null);
-          const { error } = await signUp(email, password, username);
-          if (error) setAuthError(error.message);
+          setIsAuthenticating(true);
+          try {
+            const { error } = await signUp(email, password, username);
+            if (error) setAuthError(error.message);
+          } finally {
+            setIsAuthenticating(false);
+          }
         }}
-        isLoading={false}
+        isLoading={isAuthenticating}
         error={authError}
       />
     );
