@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { RetroButton, RetroInput } from "./RetroUI";
 import { useScripts } from "../hooks/useScripts";
 import { useBids } from "../hooks/useBids";
+import { useAllBids } from "../hooks/useAllBids";
 import { useGameState } from "../hooks/useGameState";
 
 export const ScriptMarketMultiplayer: React.FC = () => {
@@ -10,18 +11,20 @@ export const ScriptMarketMultiplayer: React.FC = () => {
   const [selectedScriptId, setSelectedScriptId] = useState<string | null>(null);
   const [bidAmount, setBidAmount] = useState<number>(0);
 
+  // Get all bids for all scripts
+  const { bidsByScript, getHighestBidForScript, isUserHighBidderForScript } =
+    useAllBids();
+
+  // Get bids for selected script (for detail view)
   const {
-    bids,
-    loading: bidsLoading,
+    bids: selectedScriptBids,
     placing,
     placeBid,
-    getHighestBid,
-    isUserHighBidder,
   } = useBids(selectedScriptId || undefined);
 
   const handleStartBid = (scriptId: string, baseCost: number) => {
     setSelectedScriptId(scriptId);
-    const highestBid = getHighestBid();
+    const highestBid = getHighestBidForScript(scriptId);
     setBidAmount(highestBid ? highestBid.amount + 50000 : baseCost);
   };
 
@@ -66,14 +69,11 @@ export const ScriptMarketMultiplayer: React.FC = () => {
                 </div>
               ) : (
                 scripts.map((script) => {
-                  const scriptBids = selectedScriptId === script.id ? bids : [];
-                  const highestBid =
-                    scriptBids.length > 0 ? scriptBids[0] : null;
+                  const highestBid = getHighestBidForScript(script.id);
                   const currentPrice = highestBid
                     ? highestBid.amount
                     : script.base_cost;
-                  const isHighBidder =
-                    selectedScriptId === script.id && isUserHighBidder();
+                  const isHighBidder = isUserHighBidderForScript(script.id);
 
                   return (
                     <div
@@ -224,8 +224,8 @@ export const ScriptMarketMultiplayer: React.FC = () => {
             LIVE BID FEED
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-white">
-            {selectedScriptId && bids.length > 0 ? (
-              bids.map((bid, index) => (
+            {selectedScriptId && selectedScriptBids.length > 0 ? (
+              selectedScriptBids.map((bid, index) => (
                 <div
                   key={bid.id}
                   className={`p-2 bevel-outset text-xs ${

@@ -75,7 +75,7 @@ export const StudioNetwork: React.FC<Props> = ({
                 </span>
                 <span className="truncate flex-1 font-medium">{r.name}</span>
                 <span className="text-[9px] opacity-60">
-                  ({r.personality[0]})
+                  ({r.personality?.[0] || "Unknown"})
                 </span>
               </div>
             ))}

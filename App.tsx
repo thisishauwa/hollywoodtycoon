@@ -25,7 +25,7 @@ import { MagazineWindow } from "./components/MagazineWindow";
 import { StudioNetwork } from "./components/StudioNetwork";
 import { StartMenu } from "./components/StartMenu";
 import { AuthScreen } from "./components/AuthScreen";
-import { WindowsXPLoader } from "./components/WindowsXPLoader";
+// WindowsXPLoader removed - no longer blocking app with loading screen
 import { ScriptMarketMultiplayer } from "./components/ScriptMarketMultiplayer";
 import { useAuth } from "./contexts/AuthContext";
 import { useStudios } from "./hooks/useStudios";
@@ -162,36 +162,29 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Show loading screen ONLY while checking auth (not game state)
-  if (loading) {
-    return <WindowsXPLoader />;
-  }
+  // Show auth screen if not fully authenticated (need both user AND profile)
+  const isFullyAuthenticated = user && profile && !loading;
 
-  // Show auth screen if not logged in
-  if (!user) {
+  if (!isFullyAuthenticated) {
     return (
       <AuthScreen
-        onSignIn={async (email, password) => {
+        onSignIn={async (email: string, password: string) => {
           setAuthError(null);
           const { error } = await signIn(email, password);
           if (error) setAuthError(error.message);
         }}
-        onSignUp={async (email, password, username) => {
+        onSignUp={async (email: string, password: string, username: string) => {
           setAuthError(null);
           const { error } = await signUp(email, password, username);
           if (error) setAuthError(error.message);
         }}
-        isLoading={loading}
+        isLoading={false}
         error={authError}
       />
     );
   }
 
-  // If user exists but profile doesn't, just show loading (profile might be fetching)
-  // Only show error after a reasonable timeout
-  if (!profile && user) {
-    return <WindowsXPLoader />;
-  }
+  // User is fully authenticated with profile - show dashboard
 
   const focusWindow = (id: string) => {
     setTopZ((prev) => prev + 1);

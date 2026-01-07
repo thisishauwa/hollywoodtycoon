@@ -15,7 +15,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false, // Don't auto-detect session from URL
+  },
+  global: {
+    headers: {
+      "x-client-info": "hollywood-tycoon-xp",
+    },
+  },
+});
 
 // Types for our database
 export interface Profile {
