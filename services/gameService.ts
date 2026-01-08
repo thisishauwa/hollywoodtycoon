@@ -1,6 +1,30 @@
 
 import { GameState, ProjectStatus, Movie, Actor, Script, Genre, GameEvent, ActorTier, RivalStudio, StudioMessage } from '../types';
 import { generateNewScripts, generateMovieReview, generateRandomEvent } from './geminiService';
+import { processActorLifecycle, updateActorTiers, LifecycleEvent } from './actorLifecycle';
+import { supabase } from '../lib/supabase';
+
+// Sync actor changes to Supabase
+async function syncActorToSupabase(actor: Actor) {
+    const { error } = await supabase
+        .from("actors")
+        .update({
+            reputation: actor.reputation,
+            skill: actor.skill,
+            salary: actor.salary,
+            status: actor.status,
+            age: actor.age,
+            tier: actor.tier,
+            relationships: actor.relationships,
+            gossip: actor.gossip || [],
+        })
+        .eq("id", actor.id);
+
+    if (error) {
+        console.error(`[GameService] Error syncing actor ${actor.name}:`, error);
+    }
+    return error;
+}
 
 const uuid = () => 'id-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
 
@@ -58,25 +82,63 @@ export const processAdvanceMonth = async (state: GameState): Promise<GameState> 
     newState.month += 1;
     const events: GameEvent[] = [];
 
-    // --- AGING & YEARLY RESET ---
+    // --- YEARLY RESET ---
     if (newState.month > 12) {
         newState.month = 1;
         newState.year += 1;
         newState.rivals = newState.rivals.map(r => ({ ...r, yearlyRevenue: 0 }));
-        
-        newState.actors = newState.actors.map(actor => {
-            const newAge = actor.age + 1;
-            let status = actor.status;
-            if (newAge > 65 && Math.random() > 0.8 && status !== 'In Production') {
-                status = 'Retired';
-                events.push({ id: uuid(), month: newState.month, type: 'INFO', message: `LEGACY: ${actor.name} has officially retired from Hollywood.`, read: false });
-            } else if (newAge > 85 && Math.random() > 0.9) {
-                status = 'Deceased';
-                events.push({ id: uuid(), month: newState.month, type: 'BAD', message: `MOURNING: The industry mourns the passing of screen legend ${actor.name}.`, read: false });
-            }
-            return { ...actor, age: newAge, status };
-        });
     }
+
+    // --- ACTOR LIFECYCLE EVENTS (death, marriage, scandal, etc.) ---
+    const { updatedActors, events: lifecycleEvents } = processActorLifecycle(
+        newState.actors,
+        newState.month
+    );
+    const tieredActors = updateActorTiers(updatedActors);
+
+    // Find actors that changed and sync to Supabase
+    const changedActors = tieredActors.filter(newActor => {
+        const oldActor = newState.actors.find(a => a.id === newActor.id);
+        if (!oldActor) return false;
+        return (
+            oldActor.reputation !== newActor.reputation ||
+            oldActor.skill !== newActor.skill ||
+            oldActor.salary !== newActor.salary ||
+            oldActor.status !== newActor.status ||
+            oldActor.age !== newActor.age ||
+            oldActor.tier !== newActor.tier ||
+            JSON.stringify(oldActor.relationships) !== JSON.stringify(newActor.relationships) ||
+            JSON.stringify(oldActor.gossip) !== JSON.stringify(newActor.gossip)
+        );
+    });
+
+    // Sync changed actors to Supabase (includes new gossip from lifecycle events)
+    if (changedActors.length > 0) {
+        console.log(`[GameService] Syncing ${changedActors.length} changed actors to Supabase`);
+        await Promise.all(changedActors.map(syncActorToSupabase));
+    }
+
+    newState.actors = tieredActors;
+
+    // Convert lifecycle events to game events
+    lifecycleEvents
+        .filter(e => e.message.length > 0) // Only significant events
+        .forEach(lifecycleEvent => {
+            let eventType: GameEvent["type"] = "INFO";
+            if (lifecycleEvent.type === "death") eventType = "BAD";
+            else if (lifecycleEvent.type === "scandal" || lifecycleEvent.type === "career_slump" || lifecycleEvent.type === "feud" || lifecycleEvent.type === "divorce") eventType = "BAD";
+            else if (lifecycleEvent.type === "award_win" || lifecycleEvent.type === "comeback" || lifecycleEvent.type === "breakout_role") eventType = "GOOD";
+            else if (lifecycleEvent.type === "marriage" || lifecycleEvent.type === "reconciliation") eventType = "GOSSIP";
+            else eventType = "GOSSIP";
+
+            events.push({
+                id: uuid(),
+                month: newState.month,
+                type: eventType,
+                message: lifecycleEvent.message,
+                read: false,
+            });
+        });
 
     // --- AUCTION RESOLUTION ---
     const wonByPlayer = newState.marketScripts.filter(s => s.highBidderId === 'player');

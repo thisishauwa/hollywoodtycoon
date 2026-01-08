@@ -571,9 +571,7 @@ const App: React.FC = () => {
                 <div className="flex-1 overflow-hidden h-full">
                   {activeTab === "dashboard" && <Dashboard state={gameState} />}
                   {activeTab === "scripts" && <ScriptMarketMultiplayer />}
-                  {activeTab === "actors" && (
-                    <ActorDb actors={gameState.actors} />
-                  )}
+                  {activeTab === "actors" && <ActorDb />}
                   {activeTab === "releases" && (
                     <ReleasedFilms state={gameState} />
                   )}

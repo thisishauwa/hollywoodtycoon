@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Actor, ActorTier } from "../types";
 import { WindowFrame, RetroProgressBar, RetroButton } from "./RetroUI";
+import { useActors } from "../hooks/useActors";
 
 interface Props {
-  actors: Actor[];
+  actors?: Actor[]; // Optional - will use Supabase if not provided
 }
 
 interface DetailProps {
@@ -12,17 +13,10 @@ interface DetailProps {
   onClose: () => void;
 }
 
-const GOSSIP_TEMPLATES = [
-  "Spotted at NoBu throwing a martini at a waiter. Yikes!",
-  "Rumored to be dating a back-up dancer from that hit boy band.",
-  "Demanded 500 bowls of specifically blue M&Ms on their last set.",
-  "Total nightmare to work with—anonymous gaffer says they 'banned eye contact'.",
-  "Seen house hunting in the Hills with a mysterious brunette. Engagement?",
-  "Caught by paparazzi hiding in a dumpster behind the Viper Room.",
-  "Insiders claim they spent $2M on a solid gold bathtub. Peak 2003.",
-  "Publicist working overtime after that leaked video of them yelling at a cat.",
-  "Rumored to be joining a 'super-secret' cult of self-help gurus.",
-  "Is the sparkle fading? Spotted at a 7-Eleven wearing sweatpants and one shoe.",
+// Fallback gossip if actor has no personalized gossip
+const FALLBACK_GOSSIP = [
+  "No major gossip at the moment. Laying low.",
+  "Keeping a surprisingly clean image lately.",
 ];
 
 const ActorDetailModal: React.FC<DetailProps> = ({
@@ -35,11 +29,11 @@ const ActorDetailModal: React.FC<DetailProps> = ({
   );
 
   const getGossip = () => {
-    const hash = actor.name.length + actor.age;
-    return [
-      GOSSIP_TEMPLATES[hash % GOSSIP_TEMPLATES.length],
-      GOSSIP_TEMPLATES[(hash * 7) % GOSSIP_TEMPLATES.length],
-    ];
+    // Use real gossip from actor if available
+    if (actor.gossip && actor.gossip.length > 0) {
+      return actor.gossip.slice(0, 4); // Show up to 4 gossip items
+    }
+    return FALLBACK_GOSSIP;
   };
 
   return (
@@ -74,12 +68,10 @@ const ActorDetailModal: React.FC<DetailProps> = ({
               {activeTab === "General" && (
                 <div className="space-y-4">
                   <div className="flex gap-4">
-                    <div className="bevel-inset p-0.5 bg-white shrink-0">
-                      <img
-                        src={actor.img}
-                        alt={actor.name}
-                        className="w-24 h-32 object-cover"
-                      />
+                    <div className="bevel-inset p-0.5 bg-white shrink-0 w-24 h-32 flex items-center justify-center bg-gradient-to-br from-[#0058ee] to-[#003399]">
+                      <span className="text-3xl font-black text-white/90 tracking-tighter">
+                        {actor.name.split(" ").map(n => n[0]).join("")}
+                      </span>
                     </div>
                     <div className="flex-1 space-y-2">
                       <div className="border-b border-gray-200 pb-1">
@@ -183,7 +175,7 @@ const ActorDetailModal: React.FC<DetailProps> = ({
                           No public data on industry rivalries or romances.
                         </p>
                       ) : (
-                        Object.entries(actor.relationships).map(
+                        (Object.entries(actor.relationships) as [string, number][]).map(
                           ([otherId, value]) => {
                             const otherActor = allActors.find(
                               (a) => a.id === otherId
@@ -195,11 +187,11 @@ const ActorDetailModal: React.FC<DetailProps> = ({
                                 className="flex items-center justify-between bg-blue-50/50 p-2 border border-blue-100 rounded"
                               >
                                 <div className="flex items-center gap-2">
-                                  <img
-                                    src={otherActor.img}
-                                    className="w-6 h-6 rounded-full border border-blue-200"
-                                    alt=""
-                                  />
+                                  <div className="w-6 h-6 rounded-full border border-blue-200 bg-gradient-to-br from-[#0058ee] to-[#003399] flex items-center justify-center">
+                                    <span className="text-[8px] font-black text-white">
+                                      {otherActor.name.split(" ").map(n => n[0]).join("")}
+                                    </span>
+                                  </div>
                                   <span className="text-[11px] font-bold text-gray-700">
                                     {otherActor.name}
                                   </span>
@@ -243,15 +235,27 @@ const ActorDetailModal: React.FC<DetailProps> = ({
   );
 };
 
-export const ActorDb: React.FC<Props> = ({ actors }) => {
+export const ActorDb: React.FC<Props> = ({ actors: propActors }) => {
+  const { actors: supabaseActors, loading } = useActors();
   const [filter, setFilter] = React.useState<ActorTier | "All">("All");
   const [selectedActor, setSelectedActor] = React.useState<Actor | null>(null);
+
+  // Use Supabase actors if no prop provided
+  const actors = propActors || supabaseActors;
 
   const sortedActors = [...actors].sort((a, b) => {
     const scoreA = a.status === "Deceased" ? 2 : a.status === "Retired" ? 1 : 0;
     const scoreB = b.status === "Deceased" ? 2 : b.status === "Retired" ? 1 : 0;
     return scoreA - scoreB;
   });
+
+  if (loading && !propActors) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#ece9d8]">
+        <p className="text-gray-500 text-sm">Loading talent pool...</p>
+      </div>
+    );
+  }
 
   const filteredActors =
     filter === "All"
@@ -315,6 +319,12 @@ export const ActorDb: React.FC<Props> = ({ actors }) => {
                           ? "bg-green-100 border-green-500 text-green-700"
                           : actor.status === "In Production"
                           ? "bg-blue-100 border-blue-500 text-blue-700"
+                          : actor.status === "On Hiatus"
+                          ? "bg-yellow-100 border-yellow-500 text-yellow-700"
+                          : actor.status === "Retired"
+                          ? "bg-purple-100 border-purple-500 text-purple-700"
+                          : actor.status === "Deceased"
+                          ? "bg-gray-200 border-gray-600 text-gray-600"
                           : "bg-gray-100 border-gray-400 text-gray-500"
                       }`}
                     >
@@ -355,6 +365,27 @@ export const ActorDb: React.FC<Props> = ({ actors }) => {
                       <RetroProgressBar progress={actor.reputation} />
                     </div>
                   </div>
+
+                  {/* Visual Description */}
+                  {actor.visualDescription && (
+                    <div className="text-[8px] text-gray-600 italic mb-2 line-clamp-2">
+                      {actor.visualDescription}
+                    </div>
+                  )}
+
+                  {/* Personality Tags */}
+                  {actor.personality && actor.personality.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {actor.personality.slice(0, 3).map((trait, i) => (
+                        <span
+                          key={i}
+                          className="text-[7px] px-1.5 py-0.5 bg-purple-100 text-purple-700 border border-purple-300 rounded-sm font-bold"
+                        >
+                          {trait}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Salary */}
                   <div className="border-t border-gray-200 pt-1.5 flex items-center justify-between">

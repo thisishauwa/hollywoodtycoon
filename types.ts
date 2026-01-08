@@ -28,11 +28,12 @@ export interface Actor {
   skill: number;
   genres: Genre[];
   img: string;
-  status: "Available" | "In Production" | "Retired" | "Deceased";
+  status: "Available" | "In Production" | "Retired" | "Deceased" | "On Hiatus";
   bio: string;
   visualDescription: string;
   personality: string[];
   relationships: Record<string, number>;
+  gossip?: string[];
 }
 
 export interface Script {
