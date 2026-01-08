@@ -247,6 +247,7 @@ function generateEvent(
         gossip: `The split from ${partner.name} is getting UGLY. Lawyers are involved, and friends are being forced to pick sides. One source called it "a bloodbath."`,
         impact: {
           reputation: -8,
+          skill: -8, // Emotional turmoil affects performance
           relationships: { [partnerId]: -80 }
         },
       };
@@ -258,7 +259,7 @@ function generateEvent(
         ...baseEvent,
         message: `Scandal rocks Hollywood: ${actor.name} ${scandal}.`,
         gossip: `The scandal won't die down. Publicists are in crisis mode, and studio execs are reconsidering upcoming projects. Career damage assessment: ongoing.`,
-        impact: { reputation: -15 },
+        impact: { reputation: -15, skill: -10, salary: -actor.salary * 0.15 }, // Scandal tanks everything
       };
     }
 
@@ -267,7 +268,7 @@ function generateEvent(
         ...baseEvent,
         message: `${actor.name} makes stunning comeback with critically acclaimed indie role.`,
         gossip: `The comeback is REAL. Critics are calling it a "career resurrection." Suddenly everyone who doubted them is pretending they always believed.`,
-        impact: { reputation: 20, skill: 5 },
+        impact: { reputation: 20, skill: 5, salary: actor.salary * 0.20 }, // Comeback = demand goes up
       };
 
     case "award_nomination": {
@@ -276,7 +277,7 @@ function generateEvent(
         ...baseEvent,
         message: `${actor.name} earns ${award} nomination for outstanding performance.`,
         gossip: `${award} nominated! The campaign trail begins. Sources say they're "cautiously optimistic" but privately "already practicing their speech."`,
-        impact: { reputation: 8 },
+        impact: { reputation: 8, skill: 3, salary: actor.salary * 0.10 }, // Nomination = price bump
       };
     }
 
@@ -286,7 +287,7 @@ function generateEvent(
         ...baseEvent,
         message: `${actor.name} wins ${award}! Emotional acceptance speech goes viral.`,
         gossip: `${award} WINNER! The after-party was legendary. Quote fees have tripled overnight. Their agent hasn't slept in three days.`,
-        impact: { reputation: 15, salary: actor.salary * 0.15 },
+        impact: { reputation: 15, skill: 5, salary: actor.salary * 0.30 }, // Award win = major price jump
       };
     }
 
@@ -295,7 +296,7 @@ function generateEvent(
         ...baseEvent,
         message: `${actor.name} takes leave from Hollywood to deal with personal matters.`,
         gossip: `Stepped away from the spotlight. Close friends say it was "a long time coming." No timeline for return. Industry peers sending support.`,
-        impact: { status: "On Hiatus" },
+        impact: { status: "On Hiatus", skill: -5 }, // Personal struggles affect focus
       };
 
     case "rehab":
@@ -303,7 +304,7 @@ function generateEvent(
         ...baseEvent,
         message: `${actor.name} returns to work after time away. Sources say they're refreshed and ready.`,
         gossip: `Back in action and looking better than ever. The hiatus clearly did wonders. Scripts are already piling up on their agent's desk.`,
-        impact: { status: "Available", reputation: 3 },
+        impact: { status: "Available", reputation: 3, skill: 8 }, // Refreshed and recharged
       };
 
     case "career_slump":
@@ -311,7 +312,7 @@ function generateEvent(
         ...baseEvent,
         message: `Rough patch for ${actor.name} as recent projects underperform. Industry insiders worried.`,
         gossip: `Career hitting a rough patch. Recent projects tanked, and insiders whisper about "box office poison." Needs a hit, and fast.`,
-        impact: { reputation: -10, salary: -actor.salary * 0.1 },
+        impact: { reputation: -10, skill: -6, salary: -actor.salary * 0.15 }, // Confidence shaken
       };
 
     case "breakout_role":
@@ -338,6 +339,7 @@ function generateEvent(
         gossip: `Major feud with ${target.name}! Insiders say they can't be in the same room. Studios are already being warned not to cast them together.`,
         impact: {
           reputation: -5,
+          skill: -4, // Drama is distracting
           relationships: { [target.id]: -40 }
         },
       };
@@ -357,6 +359,7 @@ function generateEvent(
         gossip: `Made peace with ${formerFoe.name}! They were seen having a long talk at an industry event. Sources say "the hatchet is buried." For now.`,
         impact: {
           reputation: 3,
+          skill: 3, // Peace of mind helps focus
           relationships: { [formerFoeId]: 50 }
         },
       };
