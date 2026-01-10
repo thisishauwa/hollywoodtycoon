@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { GameState } from "../types";
+import { GameState, StudioTier } from "../types";
 import { RetroProgressBar } from "./RetroUI";
 import { useGameState } from "../hooks/useGameState";
 import { useOwnedScripts } from "../hooks/useOwnedScripts";
 import { useAuth } from "../contexts/AuthContext";
+import { getStudioTier, STUDIO_TIERS } from "../constants";
 
 // Windows XP Profile Icons
 const PROFILE_ICONS = [
@@ -56,6 +57,14 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
   const currentReputation = supabaseGameState?.reputation ?? state.reputation;
   const studioName = profile?.username ?? state.studioName;
 
+  // Get studio tier info
+  const studioTierInfo = getStudioTier(currentReputation);
+  const currentTierIndex = STUDIO_TIERS.findIndex(t => t.tier === studioTierInfo.tier);
+  const nextTier = STUDIO_TIERS[currentTierIndex + 1];
+  const progressToNextTier = nextTier
+    ? ((currentReputation - studioTierInfo.minReputation) / (nextTier.minReputation - studioTierInfo.minReputation)) * 100
+    : 100;
+
   // Count movies made (owned scripts represent acquired IPs, projects with Released status are movies)
   const moviesReleased = state.projects.filter(p => p.status === "Released").length;
   const scriptsOwned = ownedScripts.length;
@@ -88,11 +97,12 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           {/* Main Controls & Stats */}
           <div className="lg:col-span-4 flex flex-col gap-3">
-            <div className="h-64 shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
+            <div className="shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
               <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
                 Studio Console
               </div>
-              <div className="flex-1 flex flex-col gap-4 p-3 bg-[#f4f4f4] overflow-hidden">
+              <div className="flex-1 flex flex-col gap-3 p-3 bg-[#f4f4f4] overflow-hidden">
+                {/* Studio Header with Tier Badge */}
                 <div className="flex items-center gap-3 border-b border-gray-300 pb-3">
                   <div className="w-12 h-12 bevel-outset rounded-sm shrink-0 shadow-sm overflow-hidden">
                     <img
@@ -101,16 +111,60 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h2 className="font-bold text-sm text-[#003399] leading-tight truncate uppercase tracking-tighter">
                       {studioName}
                     </h2>
-                    <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">
-                      Active Session
-                    </p>
+                    <div
+                      className="inline-block mt-1 px-2 py-0.5 text-[9px] font-bold uppercase rounded-sm text-white"
+                      style={{ backgroundColor: studioTierInfo.color }}
+                    >
+                      {studioTierInfo.tier}
+                    </div>
                   </div>
                 </div>
 
+                {/* Tier Progress */}
+                <div className="bg-white border border-[#808080] p-2 shadow-inner">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] text-[#808080] font-bold uppercase">
+                      Reputation
+                    </span>
+                    <span className="font-bold text-xs" style={{ color: studioTierInfo.color }}>
+                      {currentReputation}%
+                    </span>
+                  </div>
+                  <div className="h-3 bg-gray-200 border border-gray-400 rounded-sm overflow-hidden">
+                    <div
+                      className="h-full transition-all duration-500"
+                      style={{
+                        width: `${progressToNextTier}%`,
+                        backgroundColor: studioTierInfo.color
+                      }}
+                    />
+                  </div>
+                  {nextTier && (
+                    <div className="flex justify-between mt-1 text-[8px] text-gray-500">
+                      <span>{studioTierInfo.tier}</span>
+                      <span>{nextTier.minReputation}% for {nextTier.tier}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tier Benefits */}
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-300 p-2 rounded-sm">
+                  <div className="text-[8px] font-bold uppercase text-gray-500 mb-1">Tier Benefits</div>
+                  <div className="text-[9px] text-gray-700 leading-relaxed">
+                    {studioTierInfo.description}
+                  </div>
+                  {studioTierInfo.salaryDiscount > 0 && (
+                    <div className="mt-1 text-[9px] font-bold text-green-600">
+                      {studioTierInfo.salaryDiscount}% salary discount active
+                    </div>
+                  )}
+                </div>
+
+                {/* Balance & Stats */}
                 <div className="space-y-2">
                   <div className="bg-[#ffffe1] border border-[#808080] p-2 shadow-inner flex justify-between items-center">
                     <span className="text-[9px] text-[#808080] font-bold uppercase">
@@ -118,14 +172,6 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                     </span>
                     <span className="font-bold text-sm text-green-700 font-mono">
                       ${currentBalance.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="bg-white border border-[#808080] p-2 shadow-inner flex justify-between items-center">
-                    <span className="text-[9px] text-[#808080] font-bold uppercase">
-                      Industry Clout
-                    </span>
-                    <span className="font-bold text-sm text-blue-700">
-                      {currentReputation}%
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">

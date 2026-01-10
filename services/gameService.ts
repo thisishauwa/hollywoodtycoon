@@ -89,6 +89,34 @@ export const processAdvanceMonth = async (state: GameState): Promise<GameState> 
         newState.rivals = newState.rivals.map(r => ({ ...r, yearlyRevenue: 0 }));
     }
 
+    // --- CONTRACT EXPIRATION CHECK ---
+    // Process contract expirations and release actors no longer under contract
+    const { data: contractResult } = await supabase.rpc("check_contract_expiration", {
+        current_month: newState.month,
+        current_year: newState.year,
+    });
+    if (contractResult && contractResult[0]) {
+        const { expired_contracts, extended_contracts } = contractResult[0];
+        if (expired_contracts?.length > 0) {
+            events.push({
+                id: uuid(),
+                month: newState.month,
+                type: "INFO",
+                message: `CONTRACT: ${expired_contracts.length} actor contract(s) have expired.`,
+                read: false,
+            });
+        }
+        if (extended_contracts?.length > 0) {
+            events.push({
+                id: uuid(),
+                month: newState.month,
+                type: "INFO",
+                message: `CONTRACT: ${extended_contracts.length} contract(s) auto-extended (actors in production).`,
+                read: false,
+            });
+        }
+    }
+
     // --- ACTOR LIFECYCLE EVENTS (death, marriage, scandal, etc.) ---
     const { updatedActors, events: lifecycleEvents } = processActorLifecycle(
         newState.actors,
@@ -216,7 +244,21 @@ export const processAdvanceMonth = async (state: GameState): Promise<GameState> 
                 p.releaseYear = newState.year;
                 newState.balance += p.revenue;
                 newState.reputation += Math.floor(p.quality / 10);
-                newState.actors.forEach(a => { if (p.cast.includes(a.id)) a.status = 'Available'; });
+                // Release actors from production - check if they have active contracts
+                for (const actorId of p.cast) {
+                    const actor = newState.actors.find(a => a.id === actorId);
+                    if (actor) {
+                        // Check for active contract in Supabase
+                        const { data: contract } = await supabase
+                            .from("actor_contracts")
+                            .select("id")
+                            .eq("actor_id", actorId)
+                            .eq("status", "active")
+                            .single();
+                        // If under contract, go to "On Hiatus", otherwise "Available"
+                        actor.status = contract ? "On Hiatus" : "Available";
+                    }
+                }
                 const review = await generateMovieReview(p);
                 p.reviews = [review];
                 events.push({ id: uuid(), month: newState.month, type: 'GOOD', message: `RELEASE: "${p.title}" hits theaters!`, read: false });

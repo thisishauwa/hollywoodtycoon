@@ -1,10 +1,79 @@
-import { Actor, ActorTier, Genre, Script, RivalStudio } from "./types";
+import { Actor, ActorTier, Genre, Script, RivalStudio, StudioTier, StudioTierInfo } from "./types";
 
 export const INITIAL_BALANCE = 5000000;
 export const START_YEAR = 2003;
 export const START_MONTH = 1;
 
 export const GENRES = Object.values(Genre);
+
+// Studio Reputation Tier definitions
+export const STUDIO_TIERS: StudioTierInfo[] = [
+  {
+    tier: StudioTier.Unknown,
+    minReputation: 0,
+    maxReputation: 19,
+    allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList],
+    salaryDiscount: 0,
+    description: "A new studio trying to break into the industry. Limited to newcomers and C-list talent.",
+    color: "#6b7280", // gray
+  },
+  {
+    tier: StudioTier.Indie,
+    minReputation: 20,
+    maxReputation: 39,
+    allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList, ActorTier.IndieDarling],
+    salaryDiscount: 0,
+    description: "An indie studio with growing recognition. Can now attract indie darlings.",
+    color: "#8b5cf6", // purple
+  },
+  {
+    tier: StudioTier.Rising,
+    minReputation: 40,
+    maxReputation: 59,
+    allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList, ActorTier.IndieDarling, ActorTier.BList],
+    salaryDiscount: 5,
+    description: "A rising studio making waves. B-list actors now take your calls. 5% salary discount.",
+    color: "#3b82f6", // blue
+  },
+  {
+    tier: StudioTier.Major,
+    minReputation: 60,
+    maxReputation: 79,
+    allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList, ActorTier.IndieDarling, ActorTier.BList, ActorTier.AList],
+    salaryDiscount: 10,
+    description: "A major studio with industry clout. A-list actors are now accessible. 10% salary discount.",
+    color: "#f59e0b", // amber
+  },
+  {
+    tier: StudioTier.Legendary,
+    minReputation: 80,
+    maxReputation: 100,
+    allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList, ActorTier.IndieDarling, ActorTier.BList, ActorTier.AList],
+    salaryDiscount: 15,
+    description: "A legendary studio. Actors dream of working with you. 15% salary discount on all talent.",
+    color: "#eab308", // gold
+  },
+];
+
+// Helper function to get studio tier from reputation
+export const getStudioTier = (reputation: number): StudioTierInfo => {
+  const tier = STUDIO_TIERS.find(
+    (t) => reputation >= t.minReputation && reputation <= t.maxReputation
+  );
+  return tier || STUDIO_TIERS[0]; // Default to Unknown if not found
+};
+
+// Check if a studio can hire an actor based on reputation tier
+export const canHireActorTier = (studioReputation: number, actorTier: ActorTier): boolean => {
+  const studioTierInfo = getStudioTier(studioReputation);
+  return studioTierInfo.allowedActorTiers.includes(actorTier);
+};
+
+// Get the salary after applying studio tier discount
+export const getDiscountedSalary = (baseSalary: number, studioReputation: number): number => {
+  const studioTierInfo = getStudioTier(studioReputation);
+  return Math.floor(baseSalary * (1 - studioTierInfo.salaryDiscount / 100));
+};
 
 const STUDIO_NAMES = [
   "Metro-G-M",

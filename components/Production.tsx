@@ -1,7 +1,10 @@
 import React, { useState } from "react";
-import { GameState, Script, Actor, ProjectStatus } from "../types";
+import { GameState, Script, Actor, ProjectStatus, ActorTier } from "../types";
 import { RetroButton } from "./RetroUI";
 import { calculateTotalChemistry } from "../services/gameService";
+import { useContracts } from "../hooks/useContracts";
+import { useGameState } from "../hooks/useGameState";
+import { canHireActorTier, getStudioTier } from "../constants";
 
 interface Props {
   state: GameState;
@@ -25,10 +28,35 @@ export const ProductionWizard: React.FC<Props> = ({
   const [prodBudget, setProdBudget] = useState(1000000);
   const [marketingBudget, setMarketingBudget] = useState(500000);
 
+  // Get contracts and reputation for tier checks
+  const { getMyContracts, canCastActor } = useContracts();
+  const { gameState } = useGameState();
+  const studioReputation = gameState?.reputation || 30;
+  const studioTierInfo = getStudioTier(studioReputation);
+  const myContracts = getMyContracts();
+  const myContractedActorIds = myContracts.map((c) => c.actorId);
+
   const availableScripts = state.ownedScripts.filter(
     (s) => !state.projects.some((p) => p.scriptId === s.id)
   );
-  const availableActors = state.actors.filter((a) => a.status === "Available");
+
+  // Available actors:
+  // 1. Contracted actors ("On Hiatus" and in your contracts) - FREE to cast
+  // 2. Available actors that meet tier requirements
+  const availableActors = state.actors.filter((a) => {
+    // Always include your contracted actors (On Hiatus)
+    if (myContractedActorIds.includes(a.id) && (a.status === "On Hiatus" || a.status === "Available")) {
+      return true;
+    }
+    // For non-contracted actors, must be Available AND meet tier requirements
+    if (a.status === "Available" && canHireActorTier(studioReputation, a.tier as ActorTier)) {
+      return true;
+    }
+    return false;
+  });
+
+  // Check if actor is contracted (free to cast)
+  const isContractedActor = (actorId: string) => myContractedActorIds.includes(actorId);
 
   const currentChemistry = calculateTotalChemistry(
     selectedActors,
@@ -61,10 +89,13 @@ export const ProductionWizard: React.FC<Props> = ({
       setSelectedActors([...selectedActors, id]);
   };
 
+  // Contracted actors are FREE to cast (already paying monthly salary)
   const totalCost =
     prodBudget +
     marketingBudget +
     selectedActors.reduce((sum, id) => {
+      // Contracted actors don't add to cost
+      if (isContractedActor(id)) return sum;
       const a = state.actors.find((act) => act.id === id);
       return sum + (a ? a.salary : 0);
     }, 0);
@@ -190,6 +221,7 @@ export const ProductionWizard: React.FC<Props> = ({
                     {availableActors.map((a) => {
                       const chemDiff = getPotentialChemistry(a.id);
                       const isSelected = selectedActors.includes(a.id);
+                      const isContracted = isContractedActor(a.id);
                       return (
                         <div
                           key={a.id}
@@ -197,26 +229,36 @@ export const ProductionWizard: React.FC<Props> = ({
                           className={`p-1.5 md:p-2 border cursor-pointer text-[10px] md:text-xs flex gap-2 transition-all ${
                             isSelected
                               ? "bg-blue-100 border-blue-500"
+                              : isContracted
+                              ? "bg-green-50 border-green-300 hover:border-green-400"
                               : "bg-white border-gray-300 hover:border-blue-300"
                           }`}
                         >
-                          <img
-                            src={a.img}
-                            className="w-8 h-8 md:w-10 md:h-10 object-cover bg-gray-200 shrink-0"
-                            alt=""
-                          />
+                          <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#0058ee] to-[#003399] flex items-center justify-center shrink-0">
+                            <span className="text-xs font-bold text-white">
+                              {a.name.split(" ").map((n) => n[0]).join("")}
+                            </span>
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-start">
                               <div className="font-bold truncate">{a.name}</div>
                               {chemDiff !== 0 && !isSelected && (
                                 <div className="text-[9px]">
-                                  {chemDiff > 0 ? "❤️" : "⚡"}
+                                  {chemDiff > 0 ? "+" : ""}{chemDiff}
                                 </div>
                               )}
                             </div>
-                            <div className="text-gray-500">
-                              ${(a.salary / 1000).toFixed(0)}k | {a.tier}
+                            <div className="flex justify-between text-gray-500">
+                              <span>{a.tier}</span>
+                              {isContracted ? (
+                                <span className="text-green-600 font-bold">FREE</span>
+                              ) : (
+                                <span>${(a.salary / 1000).toFixed(0)}k</span>
+                              )}
                             </div>
+                            {isContracted && (
+                              <div className="text-[8px] text-green-600 font-bold">CONTRACTED</div>
+                            )}
                           </div>
                         </div>
                       );

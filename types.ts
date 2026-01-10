@@ -9,6 +9,25 @@ export enum Genre {
   Fantasy = "Fantasy",
 }
 
+// Studio Reputation Tiers
+export enum StudioTier {
+  Unknown = "Unknown",
+  Indie = "Indie Studio",
+  Rising = "Rising Studio",
+  Major = "Major Studio",
+  Legendary = "Legendary",
+}
+
+export interface StudioTierInfo {
+  tier: StudioTier;
+  minReputation: number;
+  maxReputation: number;
+  allowedActorTiers: ActorTier[];
+  salaryDiscount: number; // percentage discount on actor salaries
+  description: string;
+  color: string;
+}
+
 export enum ActorTier {
   AList = "A-List",
   BList = "B-List",
@@ -128,4 +147,17 @@ export interface GameEvent {
   message: string;
   type: "INFO" | "GOOD" | "BAD" | "AUCTION" | "GOSSIP" | "AD";
   read: boolean;
+}
+
+export interface ActorContract {
+  id: string;
+  actorId: string;
+  studioId: string;
+  startMonth: number;
+  startYear: number;
+  durationMonths: 3 | 6 | 12;
+  monthlySalary: number;
+  signingBonus: number;
+  status: "active" | "expired" | "terminated" | "bought_out";
+  createdAt: string;
 }
