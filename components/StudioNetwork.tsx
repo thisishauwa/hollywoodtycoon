@@ -28,8 +28,42 @@ export const StudioNetwork: React.FC<Props> = ({
   const [amount, setAmount] = useState<number>(100000);
   const [msg, setMsg] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [transferSuccess, setTransferSuccess] = useState(false);
 
   const rivals = [...state.rivals].sort((a, b) => b.balance - a.balance);
+
+  const handleTransfer = () => {
+    setTransferError(null);
+    setTransferSuccess(false);
+
+    if (!selectedRival) {
+      setTransferError("Select a studio first");
+      return;
+    }
+
+    if (amount <= 0) {
+      setTransferError("Amount must be positive");
+      return;
+    }
+
+    if (amount > state.balance) {
+      setTransferError(`Insufficient funds! You have $${(state.balance / 1000000).toFixed(2)}M`);
+      return;
+    }
+
+    // Confirm large transfers (over $1M)
+    if (amount > 1000000 && !showConfirm) {
+      setShowConfirm(true);
+      return;
+    }
+
+    onSendMoney(selectedRival.id, amount);
+    setShowConfirm(false);
+    setTransferSuccess(true);
+    setTimeout(() => setTransferSuccess(false), 3000);
+  };
 
   return (
     <WindowFrame
@@ -172,24 +206,64 @@ export const StudioNetwork: React.FC<Props> = ({
                       </RetroButton>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="flex-1 flex items-center gap-2 bg-white bevel-inset px-2 py-1 shadow-inner">
-                      <span className="text-[9px] font-bold text-gray-400">
-                        WIRE: $
+                  {/* Wire Transfer Section */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[9px] text-gray-500 px-1">
+                      <span>Your Balance: ${(state.balance / 1000000).toFixed(2)}M</span>
+                      <span className={`font-medium ${selectedRival.relationship >= 30 ? 'text-green-600' : selectedRival.relationship <= -30 ? 'text-red-600' : 'text-gray-500'}`}>
+                        Relationship: {selectedRival.relationship}
                       </span>
-                      <input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(parseInt(e.target.value))}
-                        className="flex-1 text-xs font-mono outline-none"
-                      />
                     </div>
-                    <RetroButton
-                      onClick={() => onSendMoney(selectedRival.id, amount)}
-                      className="!text-[9px] !px-4"
-                    >
-                      TRANSFER
-                    </RetroButton>
+                    <div className="flex gap-2">
+                      <div className="flex-1 flex items-center gap-2 bg-white bevel-inset px-2 py-1 shadow-inner">
+                        <span className="text-[9px] font-bold text-gray-400">
+                          WIRE: $
+                        </span>
+                        <input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => {
+                            setAmount(parseInt(e.target.value) || 0);
+                            setTransferError(null);
+                            setShowConfirm(false);
+                          }}
+                          className="flex-1 text-xs font-mono outline-none"
+                          min={0}
+                          step={100000}
+                        />
+                      </div>
+                      <RetroButton
+                        onClick={handleTransfer}
+                        className="!text-[9px] !px-4"
+                        disabled={amount <= 0}
+                      >
+                        {showConfirm ? 'CONFIRM' : 'TRANSFER'}
+                      </RetroButton>
+                      {showConfirm && (
+                        <RetroButton
+                          onClick={() => setShowConfirm(false)}
+                          className="!text-[9px] !px-2 !bg-gray-100"
+                        >
+                          Cancel
+                        </RetroButton>
+                      )}
+                    </div>
+                    {/* Transfer feedback */}
+                    {transferError && (
+                      <div className="text-[9px] text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200">
+                        {transferError}
+                      </div>
+                    )}
+                    {showConfirm && (
+                      <div className="text-[9px] text-yellow-700 bg-yellow-50 px-2 py-1 rounded border border-yellow-200">
+                        Confirm transfer of ${(amount / 1000000).toFixed(2)}M to {selectedRival.name}? Click CONFIRM to proceed.
+                      </div>
+                    )}
+                    {transferSuccess && (
+                      <div className="text-[9px] text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200">
+                        Transfer successful! (+10 relationship)
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
