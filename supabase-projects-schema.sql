@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS projects (
   genre TEXT NOT NULL,
   
   -- Cast (array of actor IDs)
-  cast UUID[] NOT NULL DEFAULT '{}',
+  "cast" UUID[] NOT NULL DEFAULT '{}',
   
   -- Budget
   production_budget INTEGER NOT NULL,
