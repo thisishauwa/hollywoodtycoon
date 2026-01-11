@@ -80,7 +80,21 @@ export enum ProjectStatus {
   PreProduction = "Pre-Production",
   Filming = "Filming",
   PostProduction = "Post-Production",
+  Marketing = "Marketing",
   Released = "Released",
+}
+
+// Production event that can occur during filming
+export interface ProductionEvent {
+  id: string;
+  month: number;
+  phase: ProjectStatus;
+  type: "positive" | "negative" | "neutral";
+  title: string;
+  description: string;
+  qualityImpact: number;
+  budgetImpact: number;
+  delayMonths: number;
 }
 
 export interface Movie {
@@ -92,7 +106,8 @@ export interface Movie {
   cast: string[];
   marketingBudget: number;
   productionBudget: number;
-  progress: number;
+  progress: number; // Overall 0-100
+  phaseProgress: number; // Progress within current phase 0-100
   status: ProjectStatus;
   quality: number;
   chemistry: number;
@@ -100,6 +115,11 @@ export interface Movie {
   releaseMonth: number;
   releaseYear: number;
   reviews?: string[];
+  // Phase tracking
+  productionEvents?: ProductionEvent[];
+  currentBudgetSpent?: number; // Track overages
+  estimatedReleaseMonth?: number;
+  estimatedReleaseYear?: number;
 }
 
 export interface RivalStudio {

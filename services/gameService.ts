@@ -2,6 +2,7 @@
 import { GameState, ProjectStatus, Movie, Actor, Script, Genre, GameEvent, ActorTier, RivalStudio, StudioMessage } from '../types';
 import { generateNewScripts, generateMovieReview, generateRandomEvent } from './geminiService';
 import { processActorLifecycle, updateActorTiers, LifecycleEvent } from './actorLifecycle';
+import { advanceProduction, getPhaseInfo } from './productionService';
 import { supabase } from '../lib/supabase';
 
 // Sync actor changes to Supabase
@@ -227,44 +228,107 @@ export const processAdvanceMonth = async (state: GameState): Promise<GameState> 
     const headline = await generateRandomEvent(newState.year);
     events.push({ id: uuid(), month: newState.month, type: 'GOSSIP', message: `GOSSIP: ${headline}`, read: false });
 
-    // --- PLAYER PROJECTS ---
+    // --- PLAYER PROJECTS (Phase-Based Production) ---
     const updatedProjects = await Promise.all(newState.projects.map(async (p) => {
         if (p.status === ProjectStatus.Released || p.studioId !== 'player') return p;
-        p.progress += 25 + Math.random() * 15;
-        if (p.progress >= 100) {
-            p.progress = 100;
-            const script = newState.ownedScripts.find(s => s.id === p.scriptId);
+
+        // Use the new phase-based production system
+        const { movie: updatedMovie, event, phaseChanged, released } = advanceProduction(p, newState.month);
+
+        // Handle production events
+        if (event) {
+            const eventType = event.type === 'positive' ? 'GOOD' : event.type === 'negative' ? 'BAD' : 'INFO';
+            events.push({
+                id: uuid(),
+                month: newState.month,
+                type: eventType,
+                message: `PRODUCTION "${updatedMovie.title}": ${event.title} - ${event.description}`,
+                read: false,
+            });
+
+            // Apply budget impact
+            if (event.budgetImpact !== 0) {
+                newState.balance -= event.budgetImpact;
+                if (event.budgetImpact > 0) {
+                    events.push({
+                        id: uuid(),
+                        month: newState.month,
+                        type: 'BAD',
+                        message: `BUDGET: "${updatedMovie.title}" overage of $${event.budgetImpact.toLocaleString()}`,
+                        read: false,
+                    });
+                }
+            }
+
+            // Notify of delays
+            if (event.delayMonths > 0) {
+                events.push({
+                    id: uuid(),
+                    month: newState.month,
+                    type: 'BAD',
+                    message: `DELAY: "${updatedMovie.title}" pushed back ${event.delayMonths} month(s)`,
+                    read: false,
+                });
+            }
+        }
+
+        // Handle phase transitions
+        if (phaseChanged && !released) {
+            const phaseInfo = getPhaseInfo(updatedMovie.status);
+            events.push({
+                id: uuid(),
+                month: newState.month,
+                type: 'INFO',
+                message: `PRODUCTION "${updatedMovie.title}" enters ${updatedMovie.status} ${phaseInfo.icon}`,
+                read: false,
+            });
+        }
+
+        // Handle movie release
+        if (released) {
+            const script = newState.ownedScripts.find(s => s.id === updatedMovie.scriptId);
             if (script) {
-                const chemistry = calculateTotalChemistry(p.cast, newState.actors);
-                p.chemistry = chemistry;
-                p.quality = calculateMovieQuality(p, newState.actors, script, chemistry);
-                p.revenue = calculateBoxOffice(p, newState);
-                p.status = ProjectStatus.Released;
-                p.releaseMonth = newState.month;
-                p.releaseYear = newState.year;
-                newState.balance += p.revenue;
-                newState.reputation += Math.floor(p.quality / 10);
+                const chemistry = calculateTotalChemistry(updatedMovie.cast, newState.actors);
+                updatedMovie.chemistry = chemistry;
+
+                // Quality is accumulated from events + base calculation
+                const baseQuality = calculateMovieQuality(updatedMovie, newState.actors, script, chemistry);
+                updatedMovie.quality = Math.max(0, Math.min(100, baseQuality + (updatedMovie.quality || 0)));
+
+                updatedMovie.revenue = calculateBoxOffice(updatedMovie, newState);
+                updatedMovie.releaseYear = newState.year;
+
+                newState.balance += updatedMovie.revenue;
+                newState.reputation += Math.floor(updatedMovie.quality / 10);
+
                 // Release actors from production - check if they have active contracts
-                for (const actorId of p.cast) {
+                for (const actorId of updatedMovie.cast) {
                     const actor = newState.actors.find(a => a.id === actorId);
                     if (actor) {
-                        // Check for active contract in Supabase
                         const { data: contract } = await supabase
                             .from("actor_contracts")
                             .select("id")
                             .eq("actor_id", actorId)
                             .eq("status", "active")
                             .single();
-                        // If under contract, go to "On Hiatus", otherwise "Available"
                         actor.status = contract ? "On Hiatus" : "Available";
                     }
                 }
-                const review = await generateMovieReview(p);
-                p.reviews = [review];
-                events.push({ id: uuid(), month: newState.month, type: 'GOOD', message: `RELEASE: "${p.title}" hits theaters!`, read: false });
+
+                const review = await generateMovieReview(updatedMovie);
+                updatedMovie.reviews = [review];
+
+                events.push({
+                    id: uuid(),
+                    month: newState.month,
+                    type: 'GOOD',
+                    message: `RELEASE: "${updatedMovie.title}" hits theaters! Quality: ${updatedMovie.quality}%`,
+                    read: false,
+                });
             }
         }
-        return p;
+
+        return updatedMovie;
     }));
     newState.projects = updatedProjects;
 

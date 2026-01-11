@@ -230,38 +230,68 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
               </div>
             </div>
 
-            <div className="h-32 shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
+            <div className="shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
               <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
-                Live Stages
+                Live Productions
               </div>
-              <div className="flex-1 flex flex-col bg-white overflow-y-auto p-2 space-y-2">
+              <div className="flex-1 flex flex-col bg-white overflow-y-auto p-2 space-y-2 max-h-48">
                 {state.projects.filter(
                   (p) => p.status !== "Released" && p.studioId === "player"
                 ).length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-[10px] text-center opacity-40 py-2">
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-[10px] text-center opacity-40 py-4">
                     <p className="italic">NO ACTIVE PRODUCTIONS</p>
+                    <p className="text-[8px]">Greenlight a project to start</p>
                   </div>
                 ) : (
                   state.projects
                     .filter(
                       (p) => p.status !== "Released" && p.studioId === "player"
                     )
-                    .map((p) => (
-                      <div
-                        key={p.id}
-                        className="p-2 border border-[#d4d4d4] bg-[#f9f9f9] space-y-1.5 shadow-sm shrink-0"
-                      >
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-[10px] font-bold text-[#003399] uppercase truncate w-32">
-                            {p.title}
-                          </h4>
-                          <span className="text-[8px] font-bold text-white bg-gray-500 px-1 py-0.5 rounded-sm uppercase">
-                            {p.status.split("-")[0]}
-                          </span>
+                    .map((p) => {
+                      const phaseColors: Record<string, string> = {
+                        "Pre-Production": "#8b5cf6",
+                        "Filming": "#ef4444",
+                        "Post-Production": "#f59e0b",
+                        "Marketing": "#3b82f6",
+                      };
+                      const phaseIcons: Record<string, string> = {
+                        "Pre-Production": "📋",
+                        "Filming": "🎬",
+                        "Post-Production": "🎞️",
+                        "Marketing": "📺",
+                      };
+                      return (
+                        <div
+                          key={p.id}
+                          className="p-2 border bg-gradient-to-r from-white to-gray-50 space-y-1.5 shadow-sm shrink-0"
+                          style={{ borderColor: phaseColors[p.status] || "#d4d4d4" }}
+                        >
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-[10px] font-bold text-[#003399] uppercase truncate flex-1">
+                              {p.title}
+                            </h4>
+                            <span
+                              className="text-[8px] font-bold text-white px-1.5 py-0.5 rounded-sm flex items-center gap-1"
+                              style={{ backgroundColor: phaseColors[p.status] || "#808080" }}
+                            >
+                              {phaseIcons[p.status]} {p.status}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[8px] text-gray-500">
+                              <span>Overall: {p.progress}%</span>
+                              <span>Phase: {p.phaseProgress || 0}%</span>
+                            </div>
+                            <RetroProgressBar progress={p.progress} />
+                          </div>
+                          {(p.productionEvents?.length || 0) > 0 && (
+                            <div className="text-[8px] text-gray-500 italic truncate">
+                              Latest: {p.productionEvents?.[p.productionEvents.length - 1]?.title}
+                            </div>
+                          )}
                         </div>
-                        <RetroProgressBar progress={p.progress} />
-                      </div>
-                    ))
+                      );
+                    })
                 )}
               </div>
             </div>

@@ -9,6 +9,7 @@ import {
   RIVAL_STUDIOS,
 } from "./constants";
 import { processAdvanceMonth } from "./services/gameService";
+import { calculateEstimatedRelease } from "./services/productionService";
 import {
   WindowFrame,
   RetroTab,
@@ -425,6 +426,9 @@ const App: React.FC = () => {
     const script = gameState.ownedScripts.find((s) => s.id === scriptId);
     if (!script) return;
 
+    // Calculate estimated release date based on production phases
+    const estimatedRelease = calculateEstimatedRelease(gameState.month, gameState.year);
+
     const newProject = {
       id: uuid(),
       scriptId,
@@ -435,12 +439,17 @@ const App: React.FC = () => {
       marketingBudget: marketing,
       productionBudget: budget,
       progress: 0,
+      phaseProgress: 0,
       status: ProjectStatus.PreProduction,
       quality: 0,
       revenue: 0,
       releaseMonth: 0,
       releaseYear: gameState.year,
       chemistry: 0,
+      productionEvents: [],
+      currentBudgetSpent: 0,
+      estimatedReleaseMonth: estimatedRelease.month,
+      estimatedReleaseYear: estimatedRelease.year,
     };
 
     setGameState((prev) => {
