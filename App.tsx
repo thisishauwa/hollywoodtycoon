@@ -287,6 +287,183 @@ const App: React.FC = () => {
     processLifecycleEvents();
   }, [clock?.month, clock?.year, user]); // Trigger when month/year changes
 
+  // Process production advancement when global clock changes
+  useEffect(() => {
+    if (!clock || !user) return;
+
+    const processProductionAdvancement = async () => {
+      try {
+        // Import production service
+        const { advanceProduction, processMovieRelease } = await import(
+          "./services/productionService"
+        );
+
+        // Get active projects (not released)
+        const activeProjects = gameState.projects.filter(
+          (p) => p.status !== "Released"
+        );
+
+        if (activeProjects.length === 0) return;
+
+        const updatedProjects = [...gameState.projects];
+        const newEvents: any[] = [];
+        let balanceChange = 0;
+        let reputationChange = 0;
+
+        // Process each active project
+        for (let i = 0; i < updatedProjects.length; i++) {
+          const project = updatedProjects[i];
+          if (project.status === "Released") continue;
+
+          // Advance production by one month
+          const { movie, event, phaseChanged, released } = advanceProduction(
+            project,
+            clock.month,
+            clock.year
+          );
+
+          updatedProjects[i] = movie;
+
+          // Add production event to game events
+          if (event) {
+            newEvents.push({
+              id: event.id,
+              month: clock.month,
+              type:
+                event.type === "positive"
+                  ? "GOOD"
+                  : event.type === "negative"
+                  ? "BAD"
+                  : "INFO",
+              message: `[${movie.title}] ${event.title}: ${event.description}`,
+              read: false,
+            });
+          }
+
+          // If movie just released, calculate box office
+          if (released) {
+            // Get cast actors
+            const cast = gameState.actors.filter((a) =>
+              movie.cast.includes(a.id)
+            );
+
+            // Count competition (other films released this month)
+            const competitionCount = gameState.projects.filter(
+              (p) =>
+                p.status === "Released" &&
+                p.releaseMonth === clock.month &&
+                p.releaseYear === clock.year &&
+                p.id !== movie.id
+            ).length;
+
+            // Calculate box office revenue
+            const releaseResult = processMovieRelease(
+              movie,
+              cast,
+              gameState.reputation,
+              competitionCount
+            );
+
+            updatedProjects[i] = releaseResult.updatedMovie;
+            balanceChange += releaseResult.revenueResult.totalRevenue;
+            reputationChange += releaseResult.reputationChange;
+
+            // Add box office event
+            newEvents.push({
+              id: `box-office-${movie.id}`,
+              month: clock.month,
+              type:
+                releaseResult.revenueResult.performance === "Flop" ||
+                releaseResult.revenueResult.performance === "Underperformer"
+                  ? "BAD"
+                  : "GOOD",
+              message: releaseResult.review,
+              read: false,
+            });
+
+            console.log(
+              `🎬 "${movie.title}" released! Revenue: $${(
+                releaseResult.revenueResult.totalRevenue / 1000000
+              ).toFixed(1)}M (${releaseResult.revenueResult.performance})`
+            );
+          }
+
+          // Notify on phase changes
+          if (phaseChanged && !released) {
+            newEvents.push({
+              id: `phase-${movie.id}-${clock.month}`,
+              month: clock.month,
+              type: "INFO",
+              message: `"${movie.title}" has entered ${movie.status} phase.`,
+              read: false,
+            });
+          }
+        }
+
+        // Update state with all changes
+        setGameState((prev) => ({
+          ...prev,
+          projects: updatedProjects,
+          balance: prev.balance + balanceChange,
+          reputation: Math.max(
+            0,
+            Math.min(100, prev.reputation + reputationChange)
+          ),
+          events: [...prev.events, ...newEvents],
+        }));
+
+        // Update Supabase balance and reputation if changed
+        if (balanceChange !== 0 || reputationChange !== 0) {
+          const { error } = await supabase
+            .from("game_state")
+            .update({
+              balance: gameState.balance + balanceChange,
+              reputation: Math.max(
+                0,
+                Math.min(100, gameState.reputation + reputationChange)
+              ),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", user.id);
+
+          if (error) {
+            console.error("Error updating balance/reputation:", error);
+          }
+        }
+
+        // Insert production events into Supabase
+        if (newEvents.length > 0) {
+          const { error } = await supabase.from("game_events").insert(
+            newEvents.map((e) => ({
+              user_id: user.id,
+              event_type: e.type.toLowerCase(),
+              title: e.type,
+              description: e.message,
+              month: clock.month,
+              year: clock.year,
+            }))
+          );
+
+          if (error) {
+            console.error("Error inserting production events:", error);
+          }
+        }
+      } catch (err) {
+        console.error("Error processing production advancement:", err);
+      }
+    };
+
+    processProductionAdvancement();
+  }, [
+    clock?.month,
+    clock?.year,
+    user,
+    gameState.projects,
+    gameState.actors,
+    gameState.reputation,
+    gameState.balance,
+  ]);
+
   // Show loading state while checking auth
   if (loading) {
     return (
