@@ -25,7 +25,7 @@ import { ReleasedFilms } from "./components/Releases";
 import { Awards } from "./components/Awards";
 import { MagazineWindow } from "./components/MagazineWindow";
 import { StudioNetwork } from "./components/StudioNetwork";
-import { ActorChat } from "./components/ActorChat";
+// ActorChat removed - studio chat is in Messenger
 import { StartMenu } from "./components/StartMenu";
 import { AuthScreen } from "./components/AuthScreen";
 // WindowsXPLoader removed - no longer blocking app with loading screen
@@ -97,12 +97,6 @@ const App: React.FC = () => {
       isOpen: false,
       isMinimized: false,
       zIndex: 12,
-    },
-    actorChat: {
-      id: "actorChat",
-      isOpen: false,
-      isMinimized: false,
-      zIndex: 13,
     },
   });
   const [activeWindowId, setActiveWindowId] = useState<string>("manager");
@@ -426,17 +420,6 @@ const App: React.FC = () => {
     });
   };
 
-  const handleUpdateActorRelationship = (actorId: string, change: number) => {
-    setGameState((prev) => ({
-      ...prev,
-      actors: prev.actors.map((a) =>
-        a.id === actorId
-          ? { ...a, reputation: Math.max(0, Math.min(100, a.reputation + change)) }
-          : a
-      ),
-    }));
-  };
-
   const handleStartProduction = (
     scriptId: string,
     actorIds: string[],
@@ -540,11 +523,6 @@ const App: React.FC = () => {
           isImage
         />
         <DesktopIcon
-          icon="🎭"
-          label="Talent Chat"
-          onClick={() => focusWindow("actorChat")}
-        />
-        <DesktopIcon
           icon="/images/Full Recycle Bin.ico"
           label="Trash"
           isImage
@@ -608,7 +586,13 @@ const App: React.FC = () => {
                 )}
 
                 <div className="flex-1 overflow-hidden h-full">
-                  {activeTab === "dashboard" && <Dashboard state={gameState} />}
+                  {activeTab === "dashboard" && (
+                    <Dashboard
+                      state={gameState}
+                      onAdvanceMonth={handleAdvanceMonth}
+                      isAdvancing={isLoading}
+                    />
+                  )}
                   {activeTab === "scripts" && <ScriptMarketMultiplayer />}
                   {activeTab === "actors" && <ActorDb />}
                   {activeTab === "releases" && (
@@ -646,17 +630,6 @@ const App: React.FC = () => {
           />
         )}
 
-        {windows.actorChat.isOpen && !windows.actorChat.isMinimized && (
-          <ActorChat
-            state={gameState}
-            onUpdateRelationship={handleUpdateActorRelationship}
-            onClose={() => closeWindow("actorChat")}
-            onMinimize={() => toggleWindowMinimize("actorChat")}
-            isActive={activeWindowId === "actorChat"}
-            zIndex={windows.actorChat.zIndex}
-            onFocus={() => focusWindow("actorChat")}
-          />
-        )}
       </div>
 
       {showProductionWizard && (

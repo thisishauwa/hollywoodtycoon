@@ -29,10 +29,14 @@ export const ProductionWizard: React.FC<Props> = ({
   const [marketingBudget, setMarketingBudget] = useState(500000);
 
   // Get contracts and reputation for tier checks
-  const { getMyContracts, canCastActor } = useContracts();
+  const { getMyContracts, loading: contractsLoading, error: contractsError } = useContracts();
   const { gameState } = useGameState();
-  const studioReputation = gameState?.reputation || 30;
+
+  // Use database reputation if available, fallback to local state
+  const studioReputation = gameState?.reputation || state.reputation || 30;
   const studioTierInfo = getStudioTier(studioReputation);
+
+  // Get contracted actor IDs (will be empty if database unavailable)
   const myContracts = getMyContracts();
   const myContractedActorIds = myContracts.map((c) => c.actorId);
 

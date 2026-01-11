@@ -24,6 +24,8 @@ const PROFILE_ICONS = [
 
 interface Props {
   state: GameState;
+  onAdvanceMonth?: () => void;
+  isAdvancing?: boolean;
 }
 
 const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
@@ -46,7 +48,7 @@ const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
   );
 };
 
-export const Dashboard: React.FC<Props> = ({ state }) => {
+export const Dashboard: React.FC<Props> = ({ state, onAdvanceMonth, isAdvancing }) => {
   // Get real data from Supabase
   const { profile } = useAuth();
   const { gameState: supabaseGameState } = useGameState();
@@ -193,6 +195,34 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Current Date & End Turn */}
+                {onAdvanceMonth && (
+                  <div className="bg-gradient-to-r from-[#0058ee] to-[#003399] text-white p-2 rounded-sm shadow-md">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wide">
+                        Current Date
+                      </div>
+                      <div className="text-sm font-bold">
+                        Q{Math.ceil(state.month / 3)} {state.year}
+                      </div>
+                    </div>
+                    <button
+                      onClick={onAdvanceMonth}
+                      disabled={isAdvancing}
+                      className={`w-full py-2 text-[11px] font-bold uppercase tracking-wider rounded-sm transition-all ${
+                        isAdvancing
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-md hover:shadow-lg active:shadow-sm'
+                      }`}
+                    >
+                      {isAdvancing ? 'Processing...' : 'End Turn (Advance Month)'}
+                    </button>
+                    <div className="text-[8px] text-center mt-1 opacity-70">
+                      Month {state.month} of 12
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
