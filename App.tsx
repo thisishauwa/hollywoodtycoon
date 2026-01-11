@@ -35,6 +35,7 @@ import { useGameState } from "./hooks/useGameState";
 import { useOwnedScripts } from "./hooks/useOwnedScripts";
 import { useEvents } from "./hooks/useEvents";
 import { useGlobalClock } from "./hooks/useGlobalClock";
+import { useProjects } from "./hooks/useProjects";
 import { supabase } from "./lib/supabase";
 
 const uuid = () =>
@@ -64,6 +65,7 @@ const App: React.FC = () => {
     user?.id
   );
   const { clock, getMonthName } = useGlobalClock();
+  const { projects: dbProjects, updateProject } = useProjects();
 
   const [gameState, setGameState] = useState<GameState>({
     month: START_MONTH,
@@ -324,6 +326,18 @@ const App: React.FC = () => {
 
           updatedProjects[i] = movie;
 
+          // Save project updates to database
+          await updateProject(movie.id, {
+            status: movie.status,
+            progress: movie.progress,
+            phaseProgress: movie.phaseProgress,
+            quality: movie.quality,
+            currentBudgetSpent: movie.currentBudgetSpent,
+            estimatedReleaseMonth: movie.estimatedReleaseMonth,
+            estimatedReleaseYear: movie.estimatedReleaseYear,
+            productionEvents: movie.productionEvents,
+          });
+
           // Add production event to game events
           if (event) {
             newEvents.push({
@@ -367,6 +381,16 @@ const App: React.FC = () => {
             updatedProjects[i] = releaseResult.updatedMovie;
             balanceChange += releaseResult.revenueResult.totalRevenue;
             reputationChange += releaseResult.reputationChange;
+
+            // Save release data to database
+            await updateProject(movie.id, {
+              status: releaseResult.updatedMovie.status,
+              releaseMonth: releaseResult.updatedMovie.releaseMonth,
+              releaseYear: releaseResult.updatedMovie.releaseYear,
+              revenue: releaseResult.updatedMovie.revenue,
+              reviews: releaseResult.updatedMovie.reviews,
+              progress: 100,
+            });
 
             // Add box office event
             newEvents.push({
