@@ -9,7 +9,7 @@ CREATE TABLE global_game_clock (
   month INTEGER DEFAULT 1 NOT NULL CHECK (month >= 1 AND month <= 12),
   year INTEGER DEFAULT 2003 NOT NULL,
   last_advanced_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  advance_interval_hours INTEGER DEFAULT 6 NOT NULL, -- 6 hours per game month (4 months per day)
+  advance_interval_hours INTEGER DEFAULT 6 NOT NULL, -- 48 hours = 2 days per game month
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
