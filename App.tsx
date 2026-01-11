@@ -22,6 +22,7 @@ import { ScriptMarket } from "./components/ScriptMarket";
 import { ActorDb } from "./components/ActorDb";
 import { ProductionWizard } from "./components/Production";
 import { ReleasedFilms } from "./components/Releases";
+import { Awards } from "./components/Awards";
 import { MagazineWindow } from "./components/MagazineWindow";
 import { StudioNetwork } from "./components/StudioNetwork";
 import { StartMenu } from "./components/StartMenu";
@@ -76,10 +77,11 @@ const App: React.FC = () => {
     playerName: profile?.username || "Studio",
     studioName: profile?.username || "Studio",
     messages: [],
+    awardsCeremonies: [],
   });
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "scripts" | "actors" | "releases"
+    "dashboard" | "scripts" | "actors" | "releases" | "awards"
   >("dashboard");
   const [showProductionWizard, setShowProductionWizard] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -561,6 +563,11 @@ const App: React.FC = () => {
                   onClick={() => setActiveTab("releases")}
                   label="Filmography"
                 />
+                <RetroTab
+                  isActive={activeTab === "awards"}
+                  onClick={() => setActiveTab("awards")}
+                  label="Awards"
+                />
               </div>
 
               {/* FLEXIBLE CONTENT BODY */}
@@ -584,6 +591,7 @@ const App: React.FC = () => {
                   {activeTab === "releases" && (
                     <ReleasedFilms state={gameState} />
                   )}
+                  {activeTab === "awards" && <Awards state={gameState} />}
                 </div>
               </div>
             </div>

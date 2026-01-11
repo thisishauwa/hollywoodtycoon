@@ -150,6 +150,7 @@ export interface GameState {
   playerName: string;
   studioName: string;
   messages: StudioMessage[];
+  awardsCeremonies: AwardsCeremony[];
 }
 
 export interface StudioMessage {
@@ -180,4 +181,35 @@ export interface ActorContract {
   signingBonus: number;
   status: "active" | "expired" | "terminated" | "bought_out";
   createdAt: string;
+}
+
+// Awards System
+export enum AwardCategory {
+  BestPicture = "Best Picture",
+  BestActor = "Best Actor",
+  BestActress = "Best Actress",
+  BestDirector = "Best Director",
+  BestScreenplay = "Best Screenplay",
+  BestCinematography = "Best Cinematography",
+  BestScore = "Best Original Score",
+}
+
+export interface AwardNomination {
+  id: string;
+  category: AwardCategory;
+  movieId: string;
+  movieTitle: string;
+  studioId: string;
+  actorId?: string; // For actor categories
+  actorName?: string;
+  isWinner: boolean;
+}
+
+export interface AwardsCeremony {
+  id: string;
+  year: number;
+  name: string;
+  nominations: AwardNomination[];
+  announced: boolean; // nominations announced
+  completed: boolean; // winners revealed
 }

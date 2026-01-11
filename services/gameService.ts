@@ -1,8 +1,9 @@
 
-import { GameState, ProjectStatus, Movie, Actor, Script, Genre, GameEvent, ActorTier, RivalStudio, StudioMessage } from '../types';
+import { GameState, ProjectStatus, Movie, Actor, Script, Genre, GameEvent, ActorTier, RivalStudio, StudioMessage, AwardsCeremony } from '../types';
 import { generateNewScripts, generateMovieReview, generateRandomEvent } from './geminiService';
 import { processActorLifecycle, updateActorTiers, LifecycleEvent } from './actorLifecycle';
 import { advanceProduction, getPhaseInfo } from './productionService';
+import { generateAwardsCeremony, determineWinners, applyAwardEffects, shouldAnnounceNominations, shouldHoldCeremony } from './awardsService';
 import { supabase } from '../lib/supabase';
 
 // Sync actor changes to Supabase
@@ -88,6 +89,53 @@ export const processAdvanceMonth = async (state: GameState): Promise<GameState> 
         newState.month = 1;
         newState.year += 1;
         newState.rivals = newState.rivals.map(r => ({ ...r, yearlyRevenue: 0 }));
+    }
+
+    // --- AWARDS PROCESSING ---
+    // Initialize awardsCeremonies if not present
+    if (!newState.awardsCeremonies) {
+        newState.awardsCeremonies = [];
+    }
+
+    // January: Announce nominations for previous year's films
+    if (shouldAnnounceNominations(newState.month)) {
+        const previousYear = newState.year - 1;
+        const existingCeremony = newState.awardsCeremonies.find(c => c.year === previousYear);
+
+        if (!existingCeremony) {
+            const ceremony = generateAwardsCeremony(newState, previousYear);
+            if (ceremony) {
+                newState.awardsCeremonies = [...newState.awardsCeremonies, ceremony];
+                const playerNoms = ceremony.nominations.filter(n => n.studioId === 'player').length;
+                events.push({
+                    id: uuid(),
+                    month: newState.month,
+                    type: playerNoms > 0 ? 'GOOD' : 'INFO',
+                    message: `AWARDS: ${previousYear} Academy Award nominations announced! ${newState.studioName} receives ${playerNoms} nomination${playerNoms !== 1 ? 's' : ''}.`,
+                    read: false,
+                });
+            }
+        }
+    }
+
+    // February: Hold the ceremony and announce winners
+    if (shouldHoldCeremony(newState.month)) {
+        const previousYear = newState.year - 1;
+        const ceremonyIdx = newState.awardsCeremonies.findIndex(c => c.year === previousYear && !c.completed);
+
+        if (ceremonyIdx !== -1) {
+            const ceremony = newState.awardsCeremonies[ceremonyIdx];
+            const completedCeremony = determineWinners(ceremony);
+
+            // Apply effects (reputation boost, actor skill boost)
+            const { updatedState, events: awardEvents } = applyAwardEffects(newState, completedCeremony);
+            Object.assign(newState, updatedState);
+            events.push(...awardEvents);
+
+            // Update the ceremony in the array
+            newState.awardsCeremonies = [...newState.awardsCeremonies];
+            newState.awardsCeremonies[ceremonyIdx] = completedCeremony;
+        }
     }
 
     // --- CONTRACT EXPIRATION CHECK ---
