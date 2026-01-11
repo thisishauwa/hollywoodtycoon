@@ -774,7 +774,6 @@ const App: React.FC = () => {
     );
 
     const newProject = {
-      id: uuid(),
       scriptId,
       studioId: user.id,
       title: script.title,

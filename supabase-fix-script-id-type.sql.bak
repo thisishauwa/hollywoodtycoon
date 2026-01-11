@@ -1,15 +1,16 @@
--- Hollywood Tycoon XP - Projects/Movies Schema
+-- Fix script_id column type from UUID to TEXT
 -- Run this in your Supabase SQL Editor
 
--- ============================================
--- PROJECTS TABLE (Movies in production or released)
--- ============================================
-CREATE TABLE IF NOT EXISTS projects (
+-- Drop the existing projects table if it exists (WARNING: This will delete all project data)
+DROP TABLE IF EXISTS projects CASCADE;
+
+-- Recreate the projects table with TEXT script_id
+CREATE TABLE projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
   -- Ownership
   studio_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  script_id TEXT NOT NULL, -- Reference to original script
+  script_id TEXT NOT NULL, -- Changed from UUID to TEXT to support current script IDs
   
   -- Basic Info
   title TEXT NOT NULL,
@@ -52,9 +53,9 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 -- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_projects_studio ON projects(studio_id);
-CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
-CREATE INDEX IF NOT EXISTS idx_projects_release ON projects(release_year, release_month);
+CREATE INDEX idx_projects_studio ON projects(studio_id);
+CREATE INDEX idx_projects_status ON projects(status);
+CREATE INDEX idx_projects_release ON projects(release_year, release_month);
 
 -- Enable RLS
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
@@ -91,66 +92,3 @@ CREATE TRIGGER projects_updated_at
 
 -- Enable realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE projects;
-
--- ============================================
--- HELPER FUNCTIONS
--- ============================================
-
--- Get all active projects (not released)
-CREATE OR REPLACE FUNCTION get_active_projects(user_id UUID)
-RETURNS SETOF projects AS $$
-BEGIN
-  RETURN QUERY
-  SELECT * FROM projects
-  WHERE studio_id = user_id
-    AND status != 'Released'
-  ORDER BY created_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Get released films for a studio
-CREATE OR REPLACE FUNCTION get_released_films(user_id UUID)
-RETURNS SETOF projects AS $$
-BEGIN
-  RETURN QUERY
-  SELECT * FROM projects
-  WHERE studio_id = user_id
-    AND status = 'Released'
-  ORDER BY release_year DESC, release_month DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Get box office rankings for a specific month/year
-CREATE OR REPLACE FUNCTION get_box_office_rankings(
-  target_month INTEGER,
-  target_year INTEGER
-)
-RETURNS TABLE (
-  rank BIGINT,
-  project_id UUID,
-  title TEXT,
-  studio_id UUID,
-  revenue INTEGER,
-  quality INTEGER
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT
-    ROW_NUMBER() OVER (ORDER BY p.revenue DESC) as rank,
-    p.id as project_id,
-    p.title,
-    p.studio_id,
-    p.revenue,
-    p.quality
-  FROM projects p
-  WHERE p.status = 'Released'
-    AND p.release_month = target_month
-    AND p.release_year = target_year
-  ORDER BY p.revenue DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Grant permissions
-GRANT EXECUTE ON FUNCTION get_active_projects TO authenticated;
-GRANT EXECUTE ON FUNCTION get_released_films TO authenticated;
-GRANT EXECUTE ON FUNCTION get_box_office_rankings TO authenticated;

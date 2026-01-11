@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS projects (
   
   -- Ownership
   studio_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  script_id TEXT NOT NULL, -- Reference to original script
+  script_id UUID NOT NULL, -- Reference to original script
   
   -- Basic Info
   title TEXT NOT NULL,
