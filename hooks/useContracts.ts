@@ -110,7 +110,10 @@ export const useContracts = () => {
       }
 
       if (actorData.status !== "Available") {
-        return { error: `${actorData.name} is not available for signing`, contract: null };
+        return {
+          error: `${actorData.name} is not available for signing`,
+          contract: null,
+        };
       }
 
       // Check for existing active contract
@@ -122,7 +125,45 @@ export const useContracts = () => {
         .single();
 
       if (existingContract) {
-        return { error: "Actor already has an active contract", contract: null };
+        return {
+          error: "Actor already has an active contract",
+          contract: null,
+        };
+      }
+
+      // Check if studio can afford the signing bonus
+      const { data: gameStateData, error: gameStateError } = await supabase
+        .from("game_state")
+        .select("balance")
+        .eq("user_id", user.id)
+        .single();
+
+      if (gameStateError || !gameStateData) {
+        return { error: "Could not verify studio balance", contract: null };
+      }
+
+      if (gameStateData.balance < signingBonus) {
+        return {
+          error: `Insufficient funds. Signing bonus: $${signingBonus.toLocaleString()}, Your balance: $${gameStateData.balance.toLocaleString()}`,
+          contract: null,
+        };
+      }
+
+      // Deduct signing bonus from balance
+      const { error: balanceError } = await supabase
+        .from("game_state")
+        .update({
+          balance: gameStateData.balance - signingBonus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id);
+
+      if (balanceError) {
+        console.error(
+          "[Contracts] Error deducting signing bonus:",
+          balanceError
+        );
+        return { error: balanceError.message, contract: null };
       }
 
       // Create the contract
@@ -143,6 +184,14 @@ export const useContracts = () => {
 
       if (contractError) {
         console.error("[Contracts] Error creating:", contractError);
+        // Rollback signing bonus deduction
+        await supabase
+          .from("game_state")
+          .update({
+            balance: gameStateData.balance, // Restore original balance
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user.id);
         return { error: contractError.message, contract: null };
       }
 
@@ -155,7 +204,18 @@ export const useContracts = () => {
       if (updateError) {
         console.error("[Contracts] Error updating actor:", updateError);
         // Rollback contract creation
-        await supabase.from("actor_contracts").delete().eq("id", contractData.id);
+        await supabase
+          .from("actor_contracts")
+          .delete()
+          .eq("id", contractData.id);
+        // Rollback signing bonus deduction
+        await supabase
+          .from("game_state")
+          .update({
+            balance: gameStateData.balance, // Restore original balance
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user.id);
         return { error: updateError.message, contract: null };
       }
 
@@ -221,7 +281,10 @@ export const useContracts = () => {
       await fetchContracts();
 
       // Parse the result - it's an array with one row containing expired_contracts and extended_contracts
-      const result = data?.[0] || { expired_contracts: [], extended_contracts: [] };
+      const result = data?.[0] || {
+        expired_contracts: [],
+        extended_contracts: [],
+      };
       return {
         error: null,
         expired: result.expired_contracts || [],
@@ -237,7 +300,10 @@ export const useContracts = () => {
     (actorId: string) => {
       if (!user) return false;
       const contract = contracts.find(
-        (c) => c.actorId === actorId && c.studioId === user.id && c.status === "active"
+        (c) =>
+          c.actorId === actorId &&
+          c.studioId === user.id &&
+          c.status === "active"
       );
       return !!contract;
     },
@@ -245,21 +311,18 @@ export const useContracts = () => {
   );
 
   // Set actor to "In Production" status when cast in a film
-  const setActorInProduction = useCallback(
-    async (actorId: string) => {
-      const { error } = await supabase
-        .from("actors")
-        .update({ status: "In Production" })
-        .eq("id", actorId);
+  const setActorInProduction = useCallback(async (actorId: string) => {
+    const { error } = await supabase
+      .from("actors")
+      .update({ status: "In Production" })
+      .eq("id", actorId);
 
-      if (error) {
-        console.error("[Contracts] Error setting actor in production:", error);
-        return { error: error.message };
-      }
-      return { error: null };
-    },
-    []
-  );
+    if (error) {
+      console.error("[Contracts] Error setting actor in production:", error);
+      return { error: error.message };
+    }
+    return { error: null };
+  }, []);
 
   // Release actor from production back to "On Hiatus" (still under contract)
   const releaseActorFromProduction = useCallback(
@@ -280,7 +343,10 @@ export const useContracts = () => {
         .eq("id", actorId);
 
       if (error) {
-        console.error("[Contracts] Error releasing actor from production:", error);
+        console.error(
+          "[Contracts] Error releasing actor from production:",
+          error
+        );
         return { error: error.message };
       }
       return { error: null };
@@ -291,13 +357,17 @@ export const useContracts = () => {
   // Get contracts for current user
   const getMyContracts = useCallback(() => {
     if (!user) return [];
-    return contracts.filter((c) => c.studioId === user.id && c.status === "active");
+    return contracts.filter(
+      (c) => c.studioId === user.id && c.status === "active"
+    );
   }, [contracts, user]);
 
   // Get contract for a specific actor
   const getActorContract = useCallback(
     (actorId: string) => {
-      return contracts.find((c) => c.actorId === actorId && c.status === "active");
+      return contracts.find(
+        (c) => c.actorId === actorId && c.status === "active"
+      );
     },
     [contracts]
   );
