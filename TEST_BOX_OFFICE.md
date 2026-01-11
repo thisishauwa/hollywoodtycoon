@@ -1,0 +1,141 @@
+# Box Office Revenue System - Testing Guide
+
+## ✅ What Was Implemented
+
+### 1. Box Office Revenue Calculation (`boxOfficeService.ts`)
+
+Calculates realistic revenue based on:
+
+- **Quality** (0-100): Better films earn more
+- **Marketing Budget**: More marketing = more awareness (diminishing returns)
+- **Star Power**: A-list actors draw bigger audiences
+- **Cast Chemistry**: Good chemistry = better word-of-mouth
+- **Studio Reputation**: Established studios have brand recognition
+- **Genre**: Action/Sci-Fi earn more than Romance/Drama
+- **Competition**: Multiple releases same month split the audience
+- **Random Variance**: ±15% to simulate unpredictability
+
+### 2. Revenue Formula
+
+```
+Base Revenue = Production Budget × 2.5
+Total Revenue = Base × Quality × Marketing × Stars × Chemistry × Reputation × Genre × Competition × Variance
+```
+
+### 3. Performance Categories
+
+- **Phenomenon**: ROI > 300% (3x return)
+- **Blockbuster**: ROI 150-300%
+- **Hit**: ROI 50-150%
+- **Moderate**: ROI 0-50%
+- **Underperformer**: ROI -50% to 0%
+- **Flop**: ROI < -50%
+
+### 4. Reputation Impact
+
+- Phenomenon: +15 reputation
+- Blockbuster: +10 reputation
+- Hit: +5 reputation
+- Moderate: +2 reputation
+- Underperformer: -5 reputation
+- Flop: -10 reputation
+
+## 📊 Example Calculations
+
+### Example 1: Modest Drama
+
+```
+Production Budget: $5M
+Marketing Budget: $2M
+Quality: 70
+Cast: 2 C-List actors (avg reputation 60)
+Chemistry: 65
+Studio Reputation: 40
+Genre: Drama (0.9x multiplier)
+Competition: 2 other films
+
+Base: $5M × 2.5 = $12.5M
+Quality: 70/100 → 1.55x
+Marketing: $2M/$5M = 0.4 ratio → 1.32x
+Stars: C-List avg → 1.0x
+Chemistry: 65/100 → 1.16x
+Reputation: 40/100 → 1.02x
+Genre: Drama → 0.9x
+Competition: 2 films → 0.8x penalty
+Variance: ~1.0x
+
+Estimated Revenue: ~$15-20M
+ROI: ~50-100% (Hit)
+```
+
+### Example 2: Big Budget Action
+
+```
+Production Budget: $100M
+Marketing Budget: $50M
+Quality: 85
+Cast: 2 A-List (rep 90), 1 B-List (rep 75)
+Chemistry: 80
+Studio Reputation: 70
+Genre: Action (1.4x multiplier)
+Competition: 1 other film
+
+Base: $100M × 2.5 = $250M
+Quality: 85/100 → 1.78x
+Marketing: $50M/$100M = 0.5 ratio → 1.4x
+Stars: A-List heavy → 1.35x
+Chemistry: 80/100 → 1.22x
+Reputation: 70/100 → 1.11x
+Genre: Action → 1.4x
+Competition: 1 film → 0.9x penalty
+Variance: ~1.0x
+
+Estimated Revenue: ~$450-550M
+ROI: ~200-250% (Blockbuster)
+```
+
+## 🧪 How to Test
+
+### Manual Test (Console)
+
+```javascript
+import { calculateBoxOfficeRevenue } from "./services/boxOfficeService";
+
+const testMovie = {
+  productionBudget: 10000000,
+  marketingBudget: 5000000,
+  quality: 75,
+  chemistry: 70,
+  genre: "Action",
+};
+
+const testCast = [
+  { tier: "A-List", reputation: 85 },
+  { tier: "B-List", reputation: 70 },
+];
+
+const result = calculateBoxOfficeRevenue(testMovie, testCast, 50, 1);
+console.log(result);
+```
+
+### Integration Test
+
+1. Start a new game
+2. Sign an A-List actor to contract
+3. Buy a high-quality script
+4. Greenlight with good budget
+5. Wait for production to complete (or simulate)
+6. Check that revenue is calculated on release
+7. Verify balance increases
+8. Check reputation change
+
+## 🔧 Next Steps
+
+This system is ready but needs to be hooked up to:
+
+1. **Production advancement** (when films release)
+2. **Balance updates** (add revenue to studio)
+3. **Reputation updates** (apply reputation changes)
+4. **Event generation** (box office news in Variety)
+
+These will be implemented in the next fixes (#2-4).

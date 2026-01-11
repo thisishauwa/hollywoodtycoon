@@ -209,7 +209,9 @@ const App: React.FC = () => {
 
         const result = data?.[0];
         if (result?.advanced) {
-          console.log(`Game clock advanced to ${result.new_month}/${result.new_year}`);
+          console.log(
+            `Game clock advanced to ${result.new_month}/${result.new_year}`
+          );
         }
       } catch (err) {
         console.error("Clock check failed:", err);
@@ -224,6 +226,66 @@ const App: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [user]);
+
+  // Process actor lifecycle events when global clock changes
+  useEffect(() => {
+    if (!clock || !user) return;
+
+    const processLifecycleEvents = async () => {
+      try {
+        // Import the lifecycle service dynamically
+        const { processActorLifecycle } = await import(
+          "./services/actorLifecycle"
+        );
+
+        // Process lifecycle events for current actors
+        const { updatedActors, events: lifecycleEvents } =
+          processActorLifecycle(gameState.actors, clock.month);
+
+        // Update actors in state
+        setGameState((prev) => ({
+          ...prev,
+          actors: updatedActors,
+        }));
+
+        // Add lifecycle events to game events (for Variety magazine)
+        if (lifecycleEvents.length > 0) {
+          const gameEvents = lifecycleEvents
+            .filter((e) => e.message.trim()) // Only events with messages
+            .map((e) => ({
+              id: e.id,
+              type: "news" as const,
+              title: e.type.replace("_", " ").toUpperCase(),
+              description: e.message,
+              month: e.month,
+              year: clock.year,
+            }));
+
+          // Insert events into Supabase
+          if (gameEvents.length > 0) {
+            const { error } = await supabase.from("game_events").insert(
+              gameEvents.map((e) => ({
+                user_id: user.id,
+                event_type: e.type,
+                title: e.title,
+                description: e.description,
+                month: e.month,
+                year: e.year,
+              }))
+            );
+
+            if (error) {
+              console.error("Error inserting lifecycle events:", error);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error processing lifecycle events:", err);
+      }
+    };
+
+    processLifecycleEvents();
+  }, [clock?.month, clock?.year, user]); // Trigger when month/year changes
 
   // Show loading state while checking auth
   if (loading) {
@@ -479,7 +541,10 @@ const App: React.FC = () => {
     if (!script) return;
 
     // Calculate estimated release date based on production phases
-    const estimatedRelease = calculateEstimatedRelease(gameState.month, gameState.year);
+    const estimatedRelease = calculateEstimatedRelease(
+      gameState.month,
+      gameState.year
+    );
 
     const newProject = {
       id: uuid(),
@@ -635,9 +700,7 @@ const App: React.FC = () => {
                 )}
 
                 <div className="flex-1 overflow-hidden h-full">
-                  {activeTab === "dashboard" && (
-                    <Dashboard state={gameState} />
-                  )}
+                  {activeTab === "dashboard" && <Dashboard state={gameState} />}
                   {activeTab === "scripts" && <ScriptMarketMultiplayer />}
                   {activeTab === "actors" && <ActorDb />}
                   {activeTab === "releases" && (
@@ -674,7 +737,6 @@ const App: React.FC = () => {
             onFocus={() => focusWindow("messenger")}
           />
         )}
-
       </div>
 
       {showProductionWizard && (
@@ -696,7 +758,9 @@ const App: React.FC = () => {
         items={[
           `$${(gameState.balance / 1000).toFixed(0)}K`,
           `${gameState.reputation}% Rep`,
-          clock ? `${getMonthName().slice(0, 3)} ${clock.year}` : `Q${Math.ceil(gameState.month / 3)} ${gameState.year}`,
+          clock
+            ? `${getMonthName().slice(0, 3)} ${clock.year}`
+            : `Q${Math.ceil(gameState.month / 3)} ${gameState.year}`,
         ]}
         activeWindows={taskbarItems}
         onToggleWindow={(id) => toggleWindowMinimize(id)}

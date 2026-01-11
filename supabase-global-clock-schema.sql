@@ -141,6 +141,9 @@ BEGIN
         last_advanced_at = NOW()
     WHERE id = 1;
 
+    -- Process monthly contracts (salary deductions and expirations)
+    PERFORM process_monthly_contracts(next_month, next_year);
+
     RETURN QUERY SELECT next_month, next_year, true;
   ELSE
     RETURN QUERY SELECT current_clock.month, current_clock.year, false;
