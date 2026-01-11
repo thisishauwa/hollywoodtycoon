@@ -1,6 +1,8 @@
-import React, { useState } from "react";
-import { GameState, RivalStudio, StudioMessage } from "../types";
+import React, { useState, useEffect } from "react";
+import { GameState, RivalStudio } from "../types";
 import { WindowFrame, RetroButton } from "./RetroUI";
+import { useStudioMessages, StudioMessage, OtherStudio } from "../hooks/useStudioMessages";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Props {
   state: GameState;
@@ -13,6 +15,18 @@ interface Props {
   onFocus: () => void;
 }
 
+// Combined type for display - can be real player or AI rival
+interface DisplayStudio {
+  id: string;
+  name: string;
+  balance: number;
+  reputation: number;
+  isRealPlayer: boolean;
+  relationship?: number;
+  personality?: string;
+  ownedActors?: string[];
+}
+
 export const StudioNetwork: React.FC<Props> = ({
   state,
   onSendMoney,
@@ -23,7 +37,20 @@ export const StudioNetwork: React.FC<Props> = ({
   zIndex,
   onFocus,
 }) => {
-  const [selectedRival, setSelectedRival] = useState<RivalStudio | null>(null);
+  const { user } = useAuth();
+  const {
+    messages: realMessages,
+    otherStudios,
+    unreadCount,
+    sendMessage: sendRealMessage,
+    getConversation,
+    markAllAsRead,
+    transferMoney,
+    loading: messagesLoading,
+    error: messagesError,
+  } = useStudioMessages();
+
+  const [selectedStudio, setSelectedStudio] = useState<DisplayStudio | null>(null);
   const [viewMode, setViewMode] = useState<"chat" | "profile">("chat");
   const [amount, setAmount] = useState<number>(100000);
   const [msg, setMsg] = useState("");
@@ -31,14 +58,96 @@ export const StudioNetwork: React.FC<Props> = ({
   const [showConfirm, setShowConfirm] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [transferSuccess, setTransferSuccess] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [transferring, setTransferring] = useState(false);
 
-  const rivals = [...state.rivals].sort((a, b) => b.balance - a.balance);
+  // Combine real players and AI rivals into one list
+  const allStudios: DisplayStudio[] = [
+    // Real players first
+    ...otherStudios.map((s) => ({
+      id: s.id,
+      name: s.username,
+      balance: s.balance,
+      reputation: s.reputation,
+      isRealPlayer: true,
+    })),
+    // Then AI rivals
+    ...state.rivals.map((r) => ({
+      id: r.id,
+      name: r.name,
+      balance: r.balance,
+      reputation: 50,
+      isRealPlayer: false,
+      relationship: r.relationship,
+      personality: r.personality,
+      ownedActors: r.ownedActors,
+    })),
+  ].sort((a, b) => b.balance - a.balance);
 
-  const handleTransfer = () => {
+  // Mark messages as read when selecting a studio
+  useEffect(() => {
+    if (selectedStudio?.isRealPlayer) {
+      markAllAsRead(selectedStudio.id);
+    }
+  }, [selectedStudio, markAllAsRead]);
+
+  // Get messages for selected studio
+  const getDisplayMessages = () => {
+    if (!selectedStudio) return [];
+
+    if (selectedStudio.isRealPlayer) {
+      // Real player - use Supabase messages
+      return getConversation(selectedStudio.id).map((m) => ({
+        id: m.id,
+        fromId: m.fromUserId,
+        fromName: m.fromUsername,
+        content: m.content,
+        isFromMe: m.fromUserId === user?.id,
+        createdAt: m.createdAt,
+      }));
+    } else {
+      // AI rival - use local state messages
+      return state.messages
+        .filter(
+          (m) =>
+            m.fromId === selectedStudio.id || m.toId === selectedStudio.id
+        )
+        .map((m) => ({
+          id: m.id,
+          fromId: m.fromId,
+          fromName: m.fromId === "player" ? "You" : selectedStudio.name,
+          content: m.content,
+          isFromMe: m.fromId === "player",
+          createdAt: new Date(),
+        }));
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedStudio || !msg.trim()) return;
+
+    setSendingMessage(true);
+
+    if (selectedStudio.isRealPlayer) {
+      // Send to real player via Supabase
+      const success = await sendRealMessage(selectedStudio.id, msg, isPublic);
+      if (success) {
+        setMsg("");
+      }
+    } else {
+      // Send to AI rival via local state
+      onSendMessage(selectedStudio.id, msg, isPublic);
+      setMsg("");
+    }
+
+    setSendingMessage(false);
+  };
+
+  const handleTransfer = async () => {
     setTransferError(null);
     setTransferSuccess(false);
 
-    if (!selectedRival) {
+    if (!selectedStudio) {
       setTransferError("Select a studio first");
       return;
     }
@@ -59,15 +168,35 @@ export const StudioNetwork: React.FC<Props> = ({
       return;
     }
 
-    onSendMoney(selectedRival.id, amount);
-    setShowConfirm(false);
-    setTransferSuccess(true);
-    setTimeout(() => setTransferSuccess(false), 3000);
+    setTransferring(true);
+
+    if (selectedStudio.isRealPlayer) {
+      // Real player - use database transfer
+      const result = await transferMoney(selectedStudio.id, amount);
+      if (result.success) {
+        setTransferSuccess(true);
+        setShowConfirm(false);
+        setTimeout(() => setTransferSuccess(false), 3000);
+      } else {
+        setTransferError(result.error || "Transfer failed");
+      }
+    } else {
+      // AI rival - use local state (existing behavior)
+      onSendMoney(selectedStudio.id, amount);
+      setShowConfirm(false);
+      setTransferSuccess(true);
+      setTimeout(() => setTransferSuccess(false), 3000);
+    }
+
+    setTransferring(false);
   };
+
+  const displayMessages = getDisplayMessages();
+  const realPlayerCount = otherStudios.length;
 
   return (
     <WindowFrame
-      title="Hollywood Messenger v4.0 (AOL Connected)"
+      title={`Hollywood Messenger v4.0 ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
       onClose={onClose}
       onMinimize={onMinimize}
       isActive={isActive}
@@ -80,36 +209,70 @@ export const StudioNetwork: React.FC<Props> = ({
         {/* Buddy List */}
         <div className="w-56 border-r-2 border-[#808080] flex flex-col bg-white">
           <div className="bg-gradient-to-r from-blue-700 to-blue-500 text-white p-2 text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm shrink-0">
-            <span className="text-sm">👤</span> Buddy List (30)
+            <span className="text-sm">👤</span> Buddy List ({allStudios.length})
           </div>
           <div className="flex-1 overflow-y-auto">
+            {/* Real Players Section */}
+            {realPlayerCount > 0 && (
+              <>
+                <div className="bg-green-100 p-1 text-[10px] font-bold text-green-700 border-b flex items-center gap-1">
+                  <span className="text-green-500">●</span> Real Players ({realPlayerCount})
+                </div>
+                {allStudios.filter(s => s.isRealPlayer).map((s) => {
+                  const unreadFromThis = realMessages.filter(
+                    (m) => m.fromUserId === s.id && !m.isRead
+                  ).length;
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => setSelectedStudio(s)}
+                      className={`p-1.5 cursor-pointer text-[11px] flex items-center gap-2 ${
+                        selectedStudio?.id === s.id
+                          ? "bg-blue-600 text-white shadow-inner"
+                          : "hover:bg-blue-50 text-black"
+                      }`}
+                    >
+                      <span className="text-green-500">●</span>
+                      <span className="truncate flex-1 font-medium">{s.name}</span>
+                      {unreadFromThis > 0 && (
+                        <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full">
+                          {unreadFromThis}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* AI Studios Section */}
             <div className="bg-gray-100 p-1 text-[10px] font-bold text-gray-500 border-b italic">
-              Studios Online
+              AI Studios
             </div>
-            {rivals.map((r) => (
+            {allStudios.filter(s => !s.isRealPlayer).map((s) => (
               <div
-                key={r.id}
-                onClick={() => setSelectedRival(r)}
+                key={s.id}
+                onClick={() => setSelectedStudio(s)}
                 className={`p-1.5 cursor-pointer text-[11px] flex items-center gap-2 ${
-                  selectedRival?.id === r.id
+                  selectedStudio?.id === s.id
                     ? "bg-blue-600 text-white shadow-inner"
                     : "hover:bg-blue-50 text-black"
                 }`}
               >
                 <span
                   className={
-                    r.relationship > 30
+                    (s.relationship || 0) > 30
                       ? "text-green-500"
-                      : r.relationship < -30
+                      : (s.relationship || 0) < -30
                       ? "text-red-500"
                       : "text-gray-400"
                   }
                 >
                   ●
                 </span>
-                <span className="truncate flex-1 font-medium">{r.name}</span>
+                <span className="truncate flex-1 font-medium">{s.name}</span>
                 <span className="text-[9px] opacity-60">
-                  ({r.personality?.[0] || "Unknown"})
+                  ({s.personality?.[0] || "AI"})
                 </span>
               </div>
             ))}
@@ -126,7 +289,7 @@ export const StudioNetwork: React.FC<Props> = ({
 
         {/* Chat Window */}
         <div className="flex-1 flex flex-col bg-[#ece9d8]">
-          {selectedRival ? (
+          {selectedStudio ? (
             <div className="flex flex-col h-full">
               <div className="flex p-1 gap-1 bg-gray-200 border-b border-[#808080]">
                 <button
@@ -149,42 +312,53 @@ export const StudioNetwork: React.FC<Props> = ({
                 >
                   Profile
                 </button>
+                {selectedStudio.isRealPlayer && (
+                  <span className="ml-auto px-2 py-1 text-[9px] bg-green-100 text-green-700 font-bold rounded">
+                    REAL PLAYER
+                  </span>
+                )}
               </div>
 
               {viewMode === "chat" ? (
                 <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
                   <div className="flex-1 bg-white bevel-inset p-3 overflow-y-auto space-y-3 font-mono text-[12px] shadow-inner">
                     <div className="text-gray-400 text-center text-[10px] italic border-b pb-2 mb-2">
-                      *** You are now chatting with {selectedRival.name} ***
+                      *** You are now chatting with {selectedStudio.name} ***
+                      {selectedStudio.isRealPlayer && (
+                        <div className="text-green-600 mt-1">This is a real player - messages are delivered!</div>
+                      )}
                     </div>
-                    {state.messages
-                      .filter(
-                        (m) =>
-                          m.fromId === selectedRival.id ||
-                          m.toId === selectedRival.id
-                      )
-                      .map((m) => (
+                    {displayMessages.length === 0 ? (
+                      <div className="text-center text-gray-400 text-[10px] py-8">
+                        No messages yet. Start the conversation!
+                      </div>
+                    ) : (
+                      displayMessages.map((m) => (
                         <div key={m.id}>
                           <span
                             className={`font-black uppercase ${
-                              m.fromId === "player"
-                                ? "text-blue-600"
-                                : "text-red-600"
+                              m.isFromMe ? "text-blue-600" : "text-red-600"
                             }`}
                           >
-                            {m.fromId === "player" ? "You" : selectedRival.name}
-                            :
+                            {m.isFromMe ? "You" : m.fromName}:
                           </span>
                           <span className="ml-2 font-sans">{m.content}</span>
                         </div>
-                      ))}
+                      ))
+                    )}
                   </div>
                   <div className="bg-white bevel-inset h-24 flex flex-col shadow-inner">
                     <textarea
                       value={msg}
                       onChange={(e) => setMsg(e.target.value)}
                       className="flex-1 p-2 text-xs outline-none resize-none"
-                      placeholder="Type a message..."
+                      placeholder={`Type a message to ${selectedStudio.name}...`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
                     />
                     <div className="flex justify-between items-center p-1 bg-gray-100 border-t">
                       <label className="text-[9px] font-bold ml-1 cursor-pointer select-none">
@@ -193,16 +367,14 @@ export const StudioNetwork: React.FC<Props> = ({
                           checked={isPublic}
                           onChange={(e) => setIsPublic(e.target.checked)}
                         />{" "}
-                        PRESS
+                        PRESS RELEASE
                       </label>
                       <RetroButton
-                        onClick={() => {
-                          onSendMessage(selectedRival.id, msg, isPublic);
-                          setMsg("");
-                        }}
+                        onClick={handleSendMessage}
                         className="!py-0.5 !px-4"
+                        disabled={!msg.trim() || sendingMessage}
                       >
-                        Send
+                        {sendingMessage ? '...' : 'Send'}
                       </RetroButton>
                     </div>
                   </div>
@@ -210,9 +382,11 @@ export const StudioNetwork: React.FC<Props> = ({
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[9px] text-gray-500 px-1">
                       <span>Your Balance: ${(state.balance / 1000000).toFixed(2)}M</span>
-                      <span className={`font-medium ${selectedRival.relationship >= 30 ? 'text-green-600' : selectedRival.relationship <= -30 ? 'text-red-600' : 'text-gray-500'}`}>
-                        Relationship: {selectedRival.relationship}
-                      </span>
+                      {!selectedStudio.isRealPlayer && selectedStudio.relationship !== undefined && (
+                        <span className={`font-medium ${selectedStudio.relationship >= 30 ? 'text-green-600' : selectedStudio.relationship <= -30 ? 'text-red-600' : 'text-gray-500'}`}>
+                          Relationship: {selectedStudio.relationship}
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <div className="flex-1 flex items-center gap-2 bg-white bevel-inset px-2 py-1 shadow-inner">
@@ -235,9 +409,9 @@ export const StudioNetwork: React.FC<Props> = ({
                       <RetroButton
                         onClick={handleTransfer}
                         className="!text-[9px] !px-4"
-                        disabled={amount <= 0}
+                        disabled={amount <= 0 || transferring}
                       >
-                        {showConfirm ? 'CONFIRM' : 'TRANSFER'}
+                        {transferring ? '...' : showConfirm ? 'CONFIRM' : 'TRANSFER'}
                       </RetroButton>
                       {showConfirm && (
                         <RetroButton
@@ -256,12 +430,12 @@ export const StudioNetwork: React.FC<Props> = ({
                     )}
                     {showConfirm && (
                       <div className="text-[9px] text-yellow-700 bg-yellow-50 px-2 py-1 rounded border border-yellow-200">
-                        Confirm transfer of ${(amount / 1000000).toFixed(2)}M to {selectedRival.name}? Click CONFIRM to proceed.
+                        Confirm transfer of ${(amount / 1000000).toFixed(2)}M to {selectedStudio.name}? Click CONFIRM to proceed.
                       </div>
                     )}
                     {transferSuccess && (
                       <div className="text-[9px] text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200">
-                        Transfer successful! (+10 relationship)
+                        Transfer successful!{selectedStudio?.isRealPlayer && ' Money sent to their account.'}
                       </div>
                     )}
                   </div>
@@ -272,7 +446,12 @@ export const StudioNetwork: React.FC<Props> = ({
                     className="text-xl font-black text-[#003399] border-b-2 border-blue-600 mb-4"
                     style={{ fontFamily: "Tahoma, sans-serif" }}
                   >
-                    {selectedRival.name}
+                    {selectedStudio.name}
+                    {selectedStudio.isRealPlayer && (
+                      <span className="ml-2 text-xs font-normal bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        Real Player
+                      </span>
+                    )}
                   </h2>
                   <div
                     className="space-y-4 text-xs"
@@ -283,25 +462,37 @@ export const StudioNetwork: React.FC<Props> = ({
                         Balance
                       </span>{" "}
                       <span className="font-mono font-bold">
-                        ${(selectedRival.balance / 1000000).toFixed(1)}M
+                        ${(selectedStudio.balance / 1000000).toFixed(1)}M
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500 font-bold uppercase text-[9px]">
-                        Personality
+                        Reputation
                       </span>{" "}
                       <span className="font-bold">
-                        {selectedRival.personality}
+                        {selectedStudio.reputation}%
                       </span>
                     </div>
-                    <div className="border-t pt-2 mt-4">
-                      <h3 className="text-[10px] font-bold uppercase text-gray-400 mb-2">
-                        Contracted Talent
-                      </h3>
-                      <div className="text-[11px] text-gray-700">
-                        {selectedRival.ownedActors.length} stars on roster.
+                    {!selectedStudio.isRealPlayer && selectedStudio.personality && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 font-bold uppercase text-[9px]">
+                          Personality
+                        </span>{" "}
+                        <span className="font-bold">
+                          {selectedStudio.personality}
+                        </span>
                       </div>
-                    </div>
+                    )}
+                    {!selectedStudio.isRealPlayer && selectedStudio.ownedActors && (
+                      <div className="border-t pt-2 mt-4">
+                        <h3 className="text-[10px] font-bold uppercase text-gray-400 mb-2">
+                          Contracted Talent
+                        </h3>
+                        <div className="text-[11px] text-gray-700">
+                          {selectedStudio.ownedActors.length} stars on roster.
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -312,6 +503,16 @@ export const StudioNetwork: React.FC<Props> = ({
               <p className="text-xs font-bold uppercase tracking-widest">
                 Select a studio to start chatting
               </p>
+              {realPlayerCount > 0 && (
+                <p className="text-[10px] mt-2 text-green-600">
+                  {realPlayerCount} real player{realPlayerCount > 1 ? 's' : ''} online!
+                </p>
+              )}
+              {messagesError && (
+                <p className="text-[10px] mt-2 text-yellow-600">
+                  Note: Real-time messaging not configured yet
+                </p>
+              )}
             </div>
           )}
         </div>

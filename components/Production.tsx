@@ -32,8 +32,9 @@ export const ProductionWizard: React.FC<Props> = ({
   const { getMyContracts, loading: contractsLoading, error: contractsError } = useContracts();
   const { gameState } = useGameState();
 
-  // Use database reputation if available, fallback to local state
+  // Use database values if available, fallback to local state
   const studioReputation = gameState?.reputation || state.reputation || 30;
+  const studioBalance = gameState?.balance ?? state.balance;
   const studioTierInfo = getStudioTier(studioReputation);
 
   // Get contracted actor IDs (will be empty if database unavailable)
@@ -203,73 +204,117 @@ export const ProductionWizard: React.FC<Props> = ({
                 </div>
               )}
 
-              {step === 2 && selectedScript && (
-                <div className="space-y-2 flex flex-col h-full overflow-hidden">
-                  <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-bold text-xs md:text-sm">
-                      Cast {selectedScript.requiredCast} Actors:
-                    </h3>
+              {step === 2 && selectedScript && (() => {
+                // Split actors into contracted and available for hire
+                const contractedActors = availableActors.filter(a => isContractedActor(a.id));
+                const hireableActors = availableActors.filter(a => !isContractedActor(a.id));
+
+                const renderActorCard = (a: typeof availableActors[0], isContracted: boolean) => {
+                  const chemDiff = getPotentialChemistry(a.id);
+                  const isSelected = selectedActors.includes(a.id);
+                  return (
                     <div
-                      className={`text-[10px] px-1.5 py-0.5 border rounded font-bold ${
-                        currentChemistry >= 0
-                          ? "bg-green-100 border-green-500 text-green-800"
-                          : "bg-red-100 border-red-500 text-red-800"
+                      key={a.id}
+                      onClick={() => toggleActor(a.id)}
+                      className={`p-1.5 md:p-2 border cursor-pointer text-[10px] md:text-xs flex gap-2 transition-all ${
+                        isSelected
+                          ? "bg-blue-100 border-blue-500 ring-2 ring-blue-400"
+                          : isContracted
+                          ? "bg-green-50 border-green-400 hover:border-green-500"
+                          : "bg-white border-gray-300 hover:border-blue-300"
                       }`}
                     >
-                      Chem: {currentChemistry > 0 ? "+" : ""}
-                      {currentChemistry}
+                      <div className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center shrink-0 ${
+                        isContracted
+                          ? "bg-gradient-to-br from-green-500 to-green-700"
+                          : "bg-gradient-to-br from-[#0058ee] to-[#003399]"
+                      }`}>
+                        <span className="text-xs font-bold text-white">
+                          {a.name.split(" ").map((n: string) => n[0]).join("")}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <div className="font-bold truncate">{a.name}</div>
+                          {chemDiff !== 0 && !isSelected && (
+                            <div className={`text-[9px] font-bold ${chemDiff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {chemDiff > 0 ? "+" : ""}{chemDiff}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex justify-between text-gray-500">
+                          <span>{a.tier}</span>
+                          {isContracted ? (
+                            <span className="text-green-600 font-bold">FREE</span>
+                          ) : (
+                            <span>${(a.salary / 1000).toFixed(0)}k</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  );
+                };
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-y-auto pr-1">
-                    {availableActors.map((a) => {
-                      const chemDiff = getPotentialChemistry(a.id);
-                      const isSelected = selectedActors.includes(a.id);
-                      const isContracted = isContractedActor(a.id);
-                      return (
-                        <div
-                          key={a.id}
-                          onClick={() => toggleActor(a.id)}
-                          className={`p-1.5 md:p-2 border cursor-pointer text-[10px] md:text-xs flex gap-2 transition-all ${
-                            isSelected
-                              ? "bg-blue-100 border-blue-500"
-                              : isContracted
-                              ? "bg-green-50 border-green-300 hover:border-green-400"
-                              : "bg-white border-gray-300 hover:border-blue-300"
-                          }`}
-                        >
-                          <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#0058ee] to-[#003399] flex items-center justify-center shrink-0">
-                            <span className="text-xs font-bold text-white">
-                              {a.name.split(" ").map((n) => n[0]).join("")}
+                return (
+                  <div className="space-y-2 flex flex-col h-full overflow-hidden">
+                    <div className="flex justify-between items-center mb-1 shrink-0">
+                      <h3 className="font-bold text-xs md:text-sm">
+                        Cast {selectedScript.requiredCast} Actors ({selectedActors.length}/{selectedScript.requiredCast} selected):
+                      </h3>
+                      <div
+                        className={`text-[10px] px-1.5 py-0.5 border rounded font-bold ${
+                          currentChemistry >= 0
+                            ? "bg-green-100 border-green-500 text-green-800"
+                            : "bg-red-100 border-red-500 text-red-800"
+                        }`}
+                      >
+                        Chem: {currentChemistry > 0 ? "+" : ""}
+                        {currentChemistry}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto pr-1 space-y-3">
+                      {/* Contracted Actors Section */}
+                      {contractedActors.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2 sticky top-0 bg-white py-1 z-10">
+                            <div className="h-px flex-1 bg-green-300"></div>
+                            <span className="text-[10px] font-bold text-green-700 uppercase tracking-wide px-2 py-0.5 bg-green-100 rounded">
+                              Your Contracted Talent ({contractedActors.length}) - FREE
                             </span>
+                            <div className="h-px flex-1 bg-green-300"></div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start">
-                              <div className="font-bold truncate">{a.name}</div>
-                              {chemDiff !== 0 && !isSelected && (
-                                <div className="text-[9px]">
-                                  {chemDiff > 0 ? "+" : ""}{chemDiff}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex justify-between text-gray-500">
-                              <span>{a.tier}</span>
-                              {isContracted ? (
-                                <span className="text-green-600 font-bold">FREE</span>
-                              ) : (
-                                <span>${(a.salary / 1000).toFixed(0)}k</span>
-                              )}
-                            </div>
-                            {isContracted && (
-                              <div className="text-[8px] text-green-600 font-bold">CONTRACTED</div>
-                            )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {contractedActors.map((a) => renderActorCard(a, true))}
                           </div>
                         </div>
-                      );
-                    })}
+                      )}
+
+                      {/* Available for Hire Section */}
+                      {hireableActors.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2 sticky top-0 bg-white py-1 z-10">
+                            <div className="h-px flex-1 bg-gray-300"></div>
+                            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide px-2 py-0.5 bg-gray-100 rounded">
+                              Available for Hire ({hireableActors.length})
+                            </span>
+                            <div className="h-px flex-1 bg-gray-300"></div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {hireableActors.map((a) => renderActorCard(a, false))}
+                          </div>
+                        </div>
+                      )}
+
+                      {contractedActors.length === 0 && hireableActors.length === 0 && (
+                        <div className="text-center py-8 text-gray-500 text-sm">
+                          No actors available. Contract talent or wait for actors to become available.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {step === 3 && (
                 <div className="space-y-4">
@@ -331,13 +376,17 @@ export const ProductionWizard: React.FC<Props> = ({
                       <span>Total Cost:</span>
                       <span
                         className={
-                          totalCost > state.balance
+                          totalCost > studioBalance
                             ? "text-red-600"
                             : "text-green-700"
                         }
                       >
                         ${totalCost.toLocaleString()}
                       </span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                      <span>Your Balance:</span>
+                      <span className="font-mono">${studioBalance.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -370,7 +419,7 @@ export const ProductionWizard: React.FC<Props> = ({
                     (step === 2 &&
                       selectedActors.length <
                         (selectedScript?.requiredCast || 1)) ||
-                    (step === 3 && totalCost > state.balance)
+                    (step === 3 && totalCost > studioBalance)
                   }
                 >
                   {step === 3 ? "Greenlight" : "Next >"}

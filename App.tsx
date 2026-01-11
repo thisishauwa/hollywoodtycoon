@@ -8,7 +8,6 @@ import {
   START_YEAR,
   RIVAL_STUDIOS,
 } from "./constants";
-import { processAdvanceMonth } from "./services/gameService";
 import { calculateEstimatedRelease } from "./services/productionService";
 import {
   WindowFrame,
@@ -35,6 +34,7 @@ import { useStudios } from "./hooks/useStudios";
 import { useGameState } from "./hooks/useGameState";
 import { useOwnedScripts } from "./hooks/useOwnedScripts";
 import { useEvents } from "./hooks/useEvents";
+import { useGlobalClock } from "./hooks/useGlobalClock";
 import { supabase } from "./lib/supabase";
 
 const uuid = () =>
@@ -63,6 +63,7 @@ const App: React.FC = () => {
   const { studios: realStudios, loading: studiosLoading } = useStudios(
     user?.id
   );
+  const { clock, getMonthName } = useGlobalClock();
 
   const [gameState, setGameState] = useState<GameState>({
     month: START_MONTH,
@@ -147,6 +148,30 @@ const App: React.FC = () => {
     }
   }, [profile]);
 
+  // Sync owned scripts from Supabase to gameState
+  useEffect(() => {
+    if (multiplayerOwnedScripts.length > 0) {
+      const mappedScripts = multiplayerOwnedScripts.map((s) => ({
+        id: s.script_id,
+        title: s.title,
+        genre: s.genre as any,
+        tagline: s.tagline,
+        quality: s.quality,
+        complexity: s.complexity,
+        baseCost: s.purchase_price,
+        currentBid: s.purchase_price,
+        highBidderId: "player",
+        description: s.description,
+        requiredCast: s.required_cast,
+        tone: s.tone,
+      }));
+      setGameState((prev) => ({
+        ...prev,
+        ownedScripts: mappedScripts,
+      }));
+    }
+  }, [multiplayerOwnedScripts]);
+
   // Auto-close expired auctions every 30 seconds
   useEffect(() => {
     if (!user) return;
@@ -163,6 +188,39 @@ const App: React.FC = () => {
 
     // Then every 30 seconds
     const interval = setInterval(closeExpiredAuctions, 30000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Auto-advance global game clock (checks every 5 minutes)
+  useEffect(() => {
+    if (!user) return;
+
+    const checkAndAdvanceClock = async () => {
+      try {
+        const { data, error } = await supabase.rpc("advance_global_clock");
+        if (error) {
+          // Function might not exist yet - that's okay
+          if (!error.message.includes("does not exist")) {
+            console.error("Error advancing clock:", error);
+          }
+          return;
+        }
+
+        const result = data?.[0];
+        if (result?.advanced) {
+          console.log(`Game clock advanced to ${result.new_month}/${result.new_year}`);
+        }
+      } catch (err) {
+        console.error("Clock check failed:", err);
+      }
+    };
+
+    // Check immediately on mount
+    checkAndAdvanceClock();
+
+    // Then check every 5 minutes
+    const interval = setInterval(checkAndAdvanceClock, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [user]);
@@ -227,15 +285,6 @@ const App: React.FC = () => {
       [id]: { ...prev[id], isMinimized: !prev[id].isMinimized },
     }));
     if (windows[id].isMinimized) focusWindow(id);
-  };
-
-  const handleAdvanceMonth = async () => {
-    setIsLoading(true);
-    setTimeout(async () => {
-      const newState = await processAdvanceMonth(gameState);
-      setGameState(newState);
-      setIsLoading(false);
-    }, 600);
   };
 
   const handlePlayerBid = (scriptId: string, amount: number) => {
@@ -587,11 +636,7 @@ const App: React.FC = () => {
 
                 <div className="flex-1 overflow-hidden h-full">
                   {activeTab === "dashboard" && (
-                    <Dashboard
-                      state={gameState}
-                      onAdvanceMonth={handleAdvanceMonth}
-                      isAdvancing={isLoading}
-                    />
+                    <Dashboard state={gameState} />
                   )}
                   {activeTab === "scripts" && <ScriptMarketMultiplayer />}
                   {activeTab === "actors" && <ActorDb />}
@@ -651,7 +696,7 @@ const App: React.FC = () => {
         items={[
           `$${(gameState.balance / 1000).toFixed(0)}K`,
           `${gameState.reputation}% Rep`,
-          `Q${Math.ceil(gameState.month / 3)} ${gameState.year}`,
+          clock ? `${getMonthName().slice(0, 3)} ${clock.year}` : `Q${Math.ceil(gameState.month / 3)} ${gameState.year}`,
         ]}
         activeWindows={taskbarItems}
         onToggleWindow={(id) => toggleWindowMinimize(id)}

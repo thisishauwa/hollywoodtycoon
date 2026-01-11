@@ -4,6 +4,7 @@ import { RetroProgressBar } from "./RetroUI";
 import { useGameState } from "../hooks/useGameState";
 import { useOwnedScripts } from "../hooks/useOwnedScripts";
 import { useAuth } from "../contexts/AuthContext";
+import { useGlobalClock } from "../hooks/useGlobalClock";
 import { getStudioTier, STUDIO_TIERS } from "../constants";
 
 // Windows XP Profile Icons
@@ -24,8 +25,6 @@ const PROFILE_ICONS = [
 
 interface Props {
   state: GameState;
-  onAdvanceMonth?: () => void;
-  isAdvancing?: boolean;
 }
 
 const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
@@ -48,11 +47,12 @@ const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
   );
 };
 
-export const Dashboard: React.FC<Props> = ({ state, onAdvanceMonth, isAdvancing }) => {
+export const Dashboard: React.FC<Props> = ({ state }) => {
   // Get real data from Supabase
   const { profile } = useAuth();
   const { gameState: supabaseGameState } = useGameState();
   const { ownedScripts } = useOwnedScripts();
+  const { clock, formatTimeRemaining, getMonthName, isAwardSeason } = useGlobalClock();
 
   // Use Supabase balance if available, fallback to local state
   const currentBalance = supabaseGameState?.balance ?? state.balance;
@@ -196,33 +196,41 @@ export const Dashboard: React.FC<Props> = ({ state, onAdvanceMonth, isAdvancing 
                   </div>
                 </div>
 
-                {/* Current Date & End Turn */}
-                {onAdvanceMonth && (
-                  <div className="bg-gradient-to-r from-[#0058ee] to-[#003399] text-white p-2 rounded-sm shadow-md">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-[10px] font-bold uppercase tracking-wide">
-                        Current Date
-                      </div>
-                      <div className="text-sm font-bold">
-                        Q{Math.ceil(state.month / 3)} {state.year}
-                      </div>
+                {/* Global Game Clock */}
+                <div className="bg-gradient-to-r from-[#0058ee] to-[#003399] text-white p-2 rounded-sm shadow-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-bold uppercase tracking-wide">
+                      Game Time
                     </div>
-                    <button
-                      onClick={onAdvanceMonth}
-                      disabled={isAdvancing}
-                      className={`w-full py-2 text-[11px] font-bold uppercase tracking-wider rounded-sm transition-all ${
-                        isAdvancing
-                          ? 'bg-gray-400 cursor-not-allowed'
-                          : 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-md hover:shadow-lg active:shadow-sm'
-                      }`}
-                    >
-                      {isAdvancing ? 'Processing...' : 'End Turn (Advance Month)'}
-                    </button>
-                    <div className="text-[8px] text-center mt-1 opacity-70">
-                      Month {state.month} of 12
+                    <div className="text-sm font-bold">
+                      {clock ? `${getMonthName()} ${clock.year}` : 'Loading...'}
                     </div>
                   </div>
-                )}
+                  <div className="bg-white/10 rounded-sm p-2">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="opacity-80">Next Month In:</span>
+                      <span className="font-bold font-mono">{formatTimeRemaining()}</span>
+                    </div>
+                    <div className="mt-1 h-1 bg-white/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-yellow-400 transition-all duration-1000"
+                        style={{
+                          width: clock
+                            ? `${100 - ((clock.advanceIntervalHours - (Date.now() - clock.lastAdvancedAt.getTime()) / 3600000) / clock.advanceIntervalHours * 100)}%`
+                            : '0%'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {isAwardSeason() && (
+                    <div className="mt-2 bg-yellow-500 text-black text-[9px] font-bold py-1 px-2 rounded-sm text-center animate-pulse">
+                      AWARD SEASON - Academy Awards This Month!
+                    </div>
+                  )}
+                  <div className="text-[8px] text-center mt-1 opacity-70">
+                    All players share the same game time
+                  </div>
+                </div>
               </div>
             </div>
 
