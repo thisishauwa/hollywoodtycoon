@@ -752,7 +752,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleStartProduction = async (
+  const handleStartProduction = (
     scriptId: string,
     actorIds: string[],
     budget: number,
@@ -760,12 +760,6 @@ const App: React.FC = () => {
   ) => {
     const script = gameState.ownedScripts.find((s) => s.id === scriptId);
     if (!script) return;
-
-    // Check if user is authenticated
-    if (!user) {
-      console.error("User not authenticated");
-      return;
-    }
 
     // Calculate estimated release date based on production phases
     const estimatedRelease = calculateEstimatedRelease(
@@ -776,7 +770,7 @@ const App: React.FC = () => {
     const newProject = {
       id: uuid(),
       scriptId,
-      studioId: user.id,
+      studioId: "player",
       title: script.title,
       genre: script.genre,
       cast: actorIds,
@@ -795,14 +789,6 @@ const App: React.FC = () => {
       estimatedReleaseMonth: estimatedRelease.month,
       estimatedReleaseYear: estimatedRelease.year,
     };
-
-    // Save project to database FIRST
-    const { error } = await createProject(newProject);
-    if (error) {
-      console.error("Error creating project:", error);
-      alert("Failed to create project. Please try again.");
-      return;
-    }
 
     setGameState((prev) => {
       const newEvents: GameEvent[] = [
