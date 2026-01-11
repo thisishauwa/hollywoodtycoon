@@ -601,6 +601,7 @@ const App: React.FC = () => {
         {windows.news.isOpen && !windows.news.isMinimized && (
           <MagazineWindow
             events={gameState.events}
+            state={gameState}
             onClose={() => closeWindow("news")}
             onMinimize={() => toggleWindowMinimize("news")}
             isActive={activeWindowId === "news"}
