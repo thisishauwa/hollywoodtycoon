@@ -30,11 +30,18 @@ const formatDate = (month: number, year: number): string => {
   return `${months[month - 1].toUpperCase()} ${year}`;
 };
 
+
+
 export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMinimize, isActive, zIndex, onFocus }) => {
   const { user } = useAuth();
   const { clock } = useGlobalClock();
   const [activeCategory, setActiveCategory] = useState<NewsCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Handler to open variety window (focus) when clicking read full story
+  const onReadFullStory = (event: GameEvent) => {
+    onFocus(); // Focus the variety window
+  };
 
   // Filter and sort events
   const filteredEvents = useMemo(() => {
@@ -51,13 +58,19 @@ export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMini
       filtered = filtered.filter(e => e.message.toLowerCase().includes(query));
     }
 
-    // Sort chronologically: most recent month first
+    // Sort chronologically: most recent first (by year, then month)
     filtered = filtered.sort((a, b) => {
-      // First by month (higher = more recent)
+      // First by year (higher = more recent), defaulting to current year if missing
+      const yearA = a.year || state.year;
+      const yearB = b.year || state.year;
+      if (yearA !== yearB) {
+        return yearB - yearA;
+      }
+      // Then by month within same year (higher = more recent)
       if (a.month !== b.month) {
         return (b.month || 0) - (a.month || 0);
       }
-      // Then by ID (lexicographic, newer IDs are typically higher)
+      // Finally by ID (lexicographic, newer IDs are typically higher)
       return b.id.localeCompare(a.id);
     });
 
@@ -168,13 +181,16 @@ export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMini
                       <div className="flex gap-3">
                          <div className="flex-1">
                             <div className="text-[10px] font-bold text-[#cc0000] mb-1 uppercase">
-                              {mainStory.type === 'GOOD' ? 'ANALYSIS: HIT' : mainStory.type === 'BAD' ? 'ANALYSIS: FLOP' : 'INDUSTRY REPORT'}
+                              INDUSTRY REPORT
                             </div>
                             <p className="text-[12px] leading-snug text-gray-800">
                               <span className="font-bold uppercase text-gray-500 text-[9px] mr-1">HOLLYWOOD, CA &mdash;</span>
                               {mainStory.message} The industry is reacting to the news with mixed emotions as analysts predict long-term impacts on the studio system.
                             </p>
-                            <div className="mt-2 text-[10px] text-[#003366] font-bold hover:underline cursor-pointer">
+                            <div 
+                              onClick={() => onReadFullStory?.(mainStory)}
+                              className="mt-2 text-[10px] text-[#003366] font-bold hover:underline cursor-pointer"
+                            >
                               Read Full Story &gt;&gt;
                             </div>
                          </div>
@@ -188,12 +204,14 @@ export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMini
                      <div key={event.id} className="flex gap-2 items-start py-2 border-b border-gray-100 last:border-0 hover:bg-[#f9f9f9]">
                         <div className="mt-1 w-1.5 h-1.5 bg-[#cc0000] shrink-0"></div>
                         <div>
-                          <h3 className="text-[12px] font-bold text-[#003366] leading-tight hover:underline cursor-pointer">
-                            {event.message}
-                          </h3>
-                          <div className="text-[9px] text-gray-400 mt-0.5">
-                            {formatDate(event.month, state.year)} | {event.type}
-                          </div>
+                           <h3 className="text-[12px] font-bold text-[#003366] leading-tight hover:underline cursor-pointer">
+                             {event.message}
+                           </h3>
+                           <div className="flex items-center gap-2 mt-0.5">
+                             <div className="text-[9px] text-gray-400">
+                               {formatDate(event.month, event.year || state.year)}
+                             </div>
+                           </div>
                         </div>
                      </div>
                    ))}
@@ -225,7 +243,7 @@ export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMini
              {/* MINI CHART */}
              <div className="bg-white border border-gray-400 p-2">
                <div className="font-bold text-[10px] text-[#003366] border-b border-gray-200 mb-1 pb-1">
-                 WEEKLY BOX OFFICE
+                 TOTAL GROSS
                </div>
                {state.projects
                   .filter(p => p.status === 'Released')

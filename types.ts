@@ -165,6 +165,7 @@ export interface StudioMessage {
 export interface GameEvent {
   id: string;
   month: number;
+  year?: number; // Optional for backwards compatibility
   message: string;
   type: "INFO" | "GOOD" | "BAD" | "AUCTION" | "GOSSIP" | "AD";
   read: boolean;

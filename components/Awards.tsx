@@ -1,184 +1,244 @@
 import React, { useState } from 'react';
 import { GameState, AwardsCeremony, AwardCategory, AwardNomination } from '../types';
 import { getPlayerAwardCount } from '../services/awardsService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
   state: GameState;
 }
 
-const CATEGORY_ICONS: Record<AwardCategory, string> = {
-  [AwardCategory.BestPicture]: '🏆',
-  [AwardCategory.BestActor]: '🎭',
-  [AwardCategory.BestActress]: '🎭',
-  [AwardCategory.BestDirector]: '🎬',
-  [AwardCategory.BestScreenplay]: '📝',
-  [AwardCategory.BestCinematography]: '📷',
-  [AwardCategory.BestScore]: '🎵',
+const CATEGORY_LABELS: Record<AwardCategory, string> = {
+  [AwardCategory.BestPicture]: 'Best Picture',
+  [AwardCategory.BestActor]: 'Best Actor',
+  [AwardCategory.BestActress]: 'Best Actress',
+  [AwardCategory.BestDirector]: 'Best Director',
+  [AwardCategory.BestScreenplay]: 'Best Screenplay',
+  [AwardCategory.BestCinematography]: 'Best Cinematography',
+  [AwardCategory.BestScore]: 'Best Score',
 };
 
-const NominationCard: React.FC<{ nomination: AwardNomination; studioName: string }> = ({ nomination, studioName }) => {
-  const isPlayer = nomination.studioId === 'player';
-  const displayStudio = isPlayer ? studioName : 'Rival Studio';
-
-  return (
-    <div
-      className={`p-1.5 rounded border ${
-        nomination.isWinner
-          ? 'bg-yellow-100 border-yellow-400'
-          : isPlayer
-          ? 'bg-blue-50 border-blue-200'
-          : 'bg-white border-gray-200'
-      }`}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          {nomination.actorName && (
-            <div className="text-[10px] font-bold text-gray-800 truncate">
-              {nomination.actorName}
-            </div>
-          )}
-          <div className="text-[9px] text-gray-600 truncate" title={nomination.movieTitle}>
-            "{nomination.movieTitle}"
-          </div>
-          <div className="text-[8px] text-gray-400 truncate">{displayStudio}</div>
-        </div>
-        <div className="shrink-0 ml-1">
-          {nomination.isWinner && (
-            <span className="text-yellow-500 text-[14px]">🏆</span>
-          )}
-          {isPlayer && !nomination.isWinner && (
-            <span className="text-[8px] bg-blue-500 text-white px-1 rounded">YOU</span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const CeremonyView: React.FC<{ ceremony: AwardsCeremony; studioName: string }> = ({ ceremony, studioName }) => {
-  const [expandedCategory, setExpandedCategory] = useState<AwardCategory | null>(null);
-
-  const categories = Object.values(AwardCategory);
-  const playerWins = ceremony.nominations.filter(n => n.studioId === 'player' && n.isWinner).length;
-  const playerNoms = ceremony.nominations.filter(n => n.studioId === 'player').length;
-
-  return (
-    <div className="bg-[#ece9d8] bevel-outset p-1 mb-3">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#d4af37] to-[#b8962e] text-white px-2 py-1.5 mb-1">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[16px]">🏆</span>
-            <span className="text-[11px] font-bold">{ceremony.name}</span>
-          </div>
-          <div className="text-[9px]">
-            {ceremony.completed ? (
-              <span className="bg-white/20 px-2 py-0.5 rounded">Ceremony Complete</span>
-            ) : (
-              <span className="bg-white/30 px-2 py-0.5 rounded animate-pulse">Nominations Announced</span>
-            )}
-          </div>
-        </div>
-        {ceremony.completed && (
-          <div className="text-[9px] mt-1 opacity-80">
-            {studioName}: {playerWins} win{playerWins !== 1 ? 's' : ''} from {playerNoms} nomination{playerNoms !== 1 ? 's' : ''}
-          </div>
-        )}
-      </div>
-
-      {/* Categories */}
-      <div className="bg-white bevel-inset p-2 space-y-2">
-        {categories.map(category => {
-          const nominees = ceremony.nominations.filter(n => n.category === category);
-          const winner = nominees.find(n => n.isWinner);
-          const isExpanded = expandedCategory === category;
-          const playerNominated = nominees.some(n => n.studioId === 'player');
-          const playerWon = winner?.studioId === 'player';
-
-          if (nominees.length === 0) return null;
-
-          return (
-            <div key={category} className="border border-gray-200 rounded overflow-hidden">
-              <button
-                onClick={() => setExpandedCategory(isExpanded ? null : category)}
-                className={`w-full px-2 py-1.5 flex items-center justify-between text-left hover:bg-gray-50 ${
-                  playerWon ? 'bg-yellow-50' : playerNominated ? 'bg-blue-50' : 'bg-white'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-[12px]">{CATEGORY_ICONS[category]}</span>
-                  <span className="text-[10px] font-bold text-gray-700">{category}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {ceremony.completed && winner && (
-                    <span className="text-[9px] text-gray-600 truncate max-w-[120px]">
-                      {winner.actorName || winner.movieTitle}
-                    </span>
-                  )}
-                  {playerWon && <span className="text-[10px]">🏆</span>}
-                  <span className="text-[10px] text-gray-400">{isExpanded ? '▼' : '▶'}</span>
-                </div>
-              </button>
-
-              {isExpanded && (
-                <div className="border-t border-gray-200 p-2 bg-gray-50 space-y-1.5">
-                  {nominees.map(nom => (
-                    <NominationCard key={nom.id} nomination={nom} studioName={studioName} />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+// Start Menu/Toolbar component usage would go here if extracted, 
+// for now we inline the toolbar to match Releases.tsx pattern
 
 export const Awards: React.FC<Props> = ({ state }) => {
+  const { user } = useAuth();
   const { wins, nominations } = getPlayerAwardCount(state.awardsCeremonies || []);
   const ceremonies = [...(state.awardsCeremonies || [])].reverse();
+  const [selectedCeremonyId, setSelectedCeremonyId] = useState<string | null>(null);
+  const selectedCeremony = ceremonies.find(c => c.id === selectedCeremonyId);
 
   return (
-    <div className="h-full flex flex-col bg-[#ece9d8] overflow-hidden p-2">
-      <div className="flex flex-col h-full bg-[#ece9d8] bevel-outset overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#d4af37] to-[#b8962e] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0 flex items-center justify-between">
-          <span>🏆 Academy Awards Archive</span>
-          <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded">
-            {wins} Wins / {nominations} Nominations
-          </span>
+    <div className="h-full flex flex-col bg-[#ece9d8] font-tahoma text-[11px]">
+        {/* MENUBAR (Visual Only) */}
+        <div className="h-5 bg-[#ece9d8] flex items-center px-1 border-b border-[#d4d0c8] select-none text-black">
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">File</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Edit</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">View</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Favorites</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Tools</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Help</span>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-2 bg-white">
-          {ceremonies.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <span className="text-[40px] mb-2 opacity-30">🏆</span>
-              <p className="text-[10px] font-bold uppercase tracking-widest">
-                No Awards Ceremonies Yet
-              </p>
-              <p className="text-[9px] mt-1 text-center max-w-[200px]">
-                Nominations are announced in January for films released the previous year.
-                The ceremony takes place in February.
-              </p>
+        {/* STANDARD BUTTONS TOOLBAR */}
+        <div className="h-10 bg-[#ece9d8] border-b border-[#d4d0c8] flex items-center px-2 gap-1 shrink-0 select-none">
+            <div className="flex items-center gap-1 pr-1 border-r border-[#d4d0c8] mr-1">
+                <button className="flex items-center gap-1 hover:brightness-110 active:brightness-95 group">
+                    <img src="/images/Frame 99.svg" className="w-5 h-5 transform scale-x-[-1]" alt="Back" />
+                    <span className="text-[11px]">Back</span>
+                    <span className="text-[8px] ml-1">▼</span>
+                </button>
+                <img src="/images/Frame 99.svg" className="w-5 h-5 opacity-50" alt="Forward" />
             </div>
-          ) : (
-            ceremonies.map(ceremony => (
-              <CeremonyView
-                key={ceremony.id}
-                ceremony={ceremony}
-                studioName={state.studioName}
-              />
-            ))
-          )}
+            
+            <button className="p-1 hover:border border-[#d4d0c8] hover:shadow-sm active:shadow-inner rounded mx-1 w-6 h-6 flex items-center justify-center bg-white border border-gray-300">
+                <span className="font-bold text-gray-500 text-[10px] pb-1">↑</span>
+            </button>
+            
+            <div className="w-[1px] h-6 bg-[#d4d0c8] mx-1"></div>
+            
+             <div className="flex items-center gap-1 px-2">
+                <img src="/images/Documents.ico" className="w-5 h-5" />
+                <span className="font-bold text-gray-500">Awards Database</span>
+             </div>
         </div>
 
-        {/* Footer Info */}
-        <div className="shrink-0 bg-gray-100 border-t border-gray-300 px-2 py-1 text-[8px] text-gray-500">
-          <span className="font-bold">Schedule:</span> Nominations in January, Ceremony in February
+        {/* ADDRESS BAR */}
+        <div className="h-6 bg-[#ece9d8] border-b border-[#d8d0c8] flex items-center px-2 gap-2 shadow-sm z-10 shrink-0">
+            <span className="text-gray-500">Address:</span>
+            <div className="bg-white border border-[#7f9db9] h-4 flex-1 flex items-center px-1 shadow-inner">
+                 <img src="/images/Documents.ico" className="w-3 h-3 mr-1" />
+                 <span className="text-black">C:\My Documents\Awards\history</span>
+            </div>
+            <div className="flex items-center gap-1 text-[#0066cc] hover:underline cursor-pointer">
+                <span className="font-bold text-[11px] text-white bg-green-500 px-2 rounded-sm border border-green-600">Go</span>
+            </div>
         </div>
-      </div>
+
+       <div className="flex flex-1 overflow-hidden bg-white">
+            {/* SIDEBAR */}
+            <div className="w-48 bg-gradient-to-b from-[#7b9fe9] to-[#6079d6] p-3 flex flex-col gap-3 border-r border-[#003399] overflow-y-auto shrink-0 text-white">
+                 {/* Award Tasks Panel */}
+                <div className="bg-white rounded-t-sm rounded-b-sm overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-3 py-1 flex justify-between items-center cursor-pointer">
+                        <span className="font-bold text-white">Award Tasks</span>
+                    </div>
+                    <div className="bg-[#d6dff7] p-2 flex flex-col gap-1 text-[#215dc6]">
+                        <div className="flex items-center gap-1 px-1 py-0.5">
+                             <img src="/images/Documents.ico" className="w-3 h-3" />
+                             <span className="font-bold">Total Wins: {wins}</span>
+                        </div>
+                        <div className="flex items-center gap-1 px-1 py-0.5">
+                             <img src="/images/Documents.ico" className="w-3 h-3 opacity-50" />
+                             <span>Total Noms: {nominations}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Details Panel */}
+                <div className="bg-white rounded-t-sm rounded-b-sm overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-3 py-1 flex justify-between items-center cursor-pointer">
+                        <span className="font-bold text-white">Ceremony Info</span>
+                    </div>
+                    <div className="bg-[#d6dff7] p-2 text-[#215dc6] min-h-[100px]">
+                        {selectedCeremony ? (
+                            <div className="text-[10px] space-y-2">
+                                <div className="font-bold border-b border-[#abc0e7] pb-1">{selectedCeremony.name}</div>
+                                
+                                {(() => {
+                                    const cWins = selectedCeremony.nominations.filter(n => n.studioId === 'player' && n.isWinner).length;
+                                    const cNoms = selectedCeremony.nominations.filter(n => n.studioId === 'player').length;
+                                    return (
+                                        <div className="grid grid-cols-[60px_1fr] gap-x-1">
+                                            <span>Your Wins:</span>
+                                            <span className="font-bold">{cWins}</span>
+                                            
+                                            <span>Your Noms:</span>
+                                            <span>{cNoms}</span>
+                                            
+                                            <span>Status:</span>
+                                            <span>{selectedCeremony.completed ? "Completed" : "Announced"}</span>
+                                        </div>
+                                    )
+                                })()}
+                            </div>
+                        ) : (
+                            <div className="text-[10px] opacity-70 italic p-2 text-center">
+                                Select a ceremony to view winners.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* MAIN CONTENT */}
+            <div className="flex-1 overflow-auto bg-white flex flex-col">
+                 <table className="w-full border-collapse">
+                    <thead className="sticky top-0 bg-[#ece9d8] hover:bg-[#f1efe6] shadow-sm z-10 border-b border-[#d4d0c8]">
+                        <tr>
+                            <th className="w-6 border-r border-[#d4d0c8] px-1 py-0.5"></th>
+                            <th className="text-left px-2 py-0.5 border-r border-[#d4d0c8] font-normal text-gray-600">Ceremony Name</th>
+                            <th className="text-left px-2 py-0.5 border-r border-[#d4d0c8] font-normal text-gray-600">Year</th>
+                            <th className="text-left px-2 py-0.5 border-r border-[#d4d0c8] font-normal text-gray-600">Your Results</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white cursor-default">
+                        {ceremonies.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="p-8 text-center text-gray-400 italic">
+                                    <img src="/images/Documents.ico" className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                                    No award ceremonies recorded yet.
+                                </td>
+                            </tr>
+                        ) : ceremonies.map((ceremony) => {
+                             const cWins = ceremony.nominations.filter(n => n.studioId === 'player' && n.isWinner).length;
+                             const cNoms = ceremony.nominations.filter(n => n.studioId === 'player').length;
+                             const isSelected = selectedCeremonyId === ceremony.id;
+
+                             return (
+                                <React.Fragment key={ceremony.id}>
+                                    {/* Ceremony Row */}
+                                    <tr 
+                                        onClick={() => setSelectedCeremonyId(isSelected ? null : ceremony.id)}
+                                        className={`${isSelected ? 'bg-[#316ac5] text-white' : 'hover:bg-[#e8f1ff] text-gray-800'}`}
+                                    >
+                                        <td className="px-2 py-0.5 text-center">
+                                            <img src="/images/Documents.ico" className="w-3 h-3" />
+                                        </td>
+                                        <td className="px-2 py-0.5 font-bold">{ceremony.name}</td>
+                                        <td className="px-2 py-0.5">{ceremony.year}</td>
+                                        <td className="px-2 py-0.5">
+                                            {cWins > 0 ? (
+                                                <span className={isSelected ? 'text-yellow-300 font-bold' : 'text-green-600 font-bold'}>
+                                                    {cWins} Win{cWins !== 1 ? 's' : ''}
+                                                </span>
+                                            ) : (
+                                                <span className="opacity-70">{cNoms} Nom{cNoms !== 1 ? 's' : ''}</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                    
+                                    {/* Expanded Details Row (Folder Open) */}
+                                    {isSelected && (
+                                        <tr>
+                                            <td colSpan={4} className="bg-white pl-8 pr-2 py-2 border-b border-[#d8d0c8]">
+                                                <div className="border border-[#d4d0c8] rounded p-2 bg-[#f8f8fa]">
+                                                    <h4 className="text-[10px] uppercase font-bold text-gray-500 mb-2 border-b border-gray-200 pb-1">Award Winners & Nominations</h4>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                        {Object.values(AwardCategory).map(cat => {
+                                                            const catNoms = ceremony.nominations.filter(n => n.category === cat);
+                                                            if (catNoms.length === 0) return null;
+                                                            const winner = catNoms.find(n => n.isWinner);
+                                                            const playerWinner = winner?.studioId === 'player';
+                                                            const yourNoms = catNoms.filter(n => n.studioId === 'player');
+                                                            
+                                                            return (
+                                                                <div key={cat} className="flex flex-col gap-0.5 bg-white border border-gray-200 p-1.5 rounded">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="font-bold text-[#003399]">{CATEGORY_LABELS[cat]}</span>
+                                                                    </div>
+                                                                    
+                                                                    {winner && (
+                                                                        <div className={`p-1 mt-1 rounded text-[10px] flex items-center gap-1 ${playerWinner ? 'bg-yellow-100 border border-yellow-300' : 'bg-gray-50'}`}>
+                                                                            <span>🏆</span>
+                                                                            <span className="font-bold">{winner.actorName || winner.movieTitle}</span>
+                                                                            {!playerWinner && <span className="text-gray-400 italic text-[9px]">({winner.studioId === 'player' ? 'You' : 'Rival'})</span>}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {yourNoms.length > 0 && (
+                                                                        <div className="mt-1 pl-1">
+                                                                            <div className="text-[9px] text-gray-400">Your Nominations:</div>
+                                                                            {yourNoms.map(n => (
+                                                                                <div key={n.id} className="text-[10px] pl-1 text-gray-600">
+                                                                                    {n.isWinner ? '• ' : '◦ '}{n.actorName || n.movieTitle}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
+                             );
+                        })}
+                    </tbody>
+                 </table>
+            </div>
+            
+            <div className="h-5 bg-[#ece9d8] border-t border-[#aca899] flex items-center select-none cursor-default font-tahoma text-[11px] shrink-0">
+                 <div className="flex-1 flex items-center gap-2 px-2 border-r border-[#aca899] shadow-[1px_0_0_white]">
+                      <span className="font-bold">{ceremonies.length} objects</span>
+                 </div>
+                 <div className="w-[150px] px-2 border-l border-white border-r border-[#aca899] shadow-[1px_0_0_white_inset] truncate">
+                     <span className="truncate">My Computer</span>
+                 </div>
+            </div>
+       </div>
     </div>
   );
 };

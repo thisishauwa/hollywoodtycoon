@@ -242,22 +242,48 @@ export const RetroButton: React.FC<
 export const RetroProgressBar: React.FC<{
   progress: number;
   label?: string;
-}> = ({ progress, label }) => (
-  <div className="relative w-full h-4 bg-white border border-[#808080] shadow-inner overflow-hidden p-[1px]">
-    <div
-      className="h-full bg-gradient-to-b from-[#38d438] via-[#28a428] to-[#1e7c1e] transition-all duration-500"
-      style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-    />
-    {label && (
-      <span
-        className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-black"
-        style={{ textShadow: "1px 1px 0 white", fontFamily: "Tahoma" }}
-      >
-        {label}
-      </span>
-    )}
-  </div>
-);
+  showPercentage?: boolean;
+}> = ({ progress, label, showPercentage = true }) => {
+  // Ensure progress is between 0 and 100
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+  
+  // Calculate how many "chunks" to show (approx 10px per chunk)
+  // We'll use a repeating gradient mask to simulate chunks
+  
+  return (
+    <div className="flex flex-col w-full font-tahoma text-[11px]">
+      {label && <div className="mb-1 text-gray-700">{label}</div>}
+      <div className="relative w-full h-4 bg-white border border-[#808080] shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] p-[1px] overflow-hidden">
+        <div 
+          className="h-full relative"
+          style={{ width: `${clampedProgress}%`, transition: 'width 0.3s ease-out' }}
+        >
+          {/* XP Green Glossy Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#dbf5ce] via-[#65cd1b] to-[#3a9e04]"></div>
+          
+          {/* White separators for the "chunk" look */}
+          <div 
+            className="absolute inset-0 w-full h-full" 
+            style={{ 
+              backgroundImage: 'linear-gradient(90deg, transparent 0px, transparent 6px, white 6px, white 8px)',
+              backgroundSize: '8px 100%' 
+            }}
+          ></div>
+          
+          {/* Shine effect */}
+          <div className="absolute top-0 left-0 w-full h-[40%] bg-gradient-to-b from-white/60 to-transparent"></div>
+        </div>
+        
+        {/* Centered Percentage Label (optional, overrides chunks visually if needed) */}
+        {showPercentage && (
+            <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-black drop-shadow-md">
+                {Math.round(clampedProgress)}%
+            </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const RetroTab: React.FC<{
   isActive: boolean;

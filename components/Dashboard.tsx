@@ -5,6 +5,7 @@ import { useGameState } from "../hooks/useGameState";
 import { useOwnedScripts } from "../hooks/useOwnedScripts";
 import { useAuth } from "../contexts/AuthContext";
 import { useGlobalClock } from "../hooks/useGlobalClock";
+import { useEvents } from "../hooks/useEvents";
 import { getStudioTier, STUDIO_TIERS } from "../constants";
 
 // Windows XP Profile Icons
@@ -28,21 +29,21 @@ interface Props {
 }
 
 const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
-  if (type === "GOOD")
-    return (
-      <div className="w-4 h-4 bg-green-500 rounded-full border border-green-700 flex items-center justify-center shadow-inner">
-        <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-      </div>
-    );
-  if (type === "BAD")
-    return (
-      <div className="w-4 h-4 bg-red-600 border border-red-900 flex items-center justify-center transform rotate-45 shadow-sm">
-        <div className="w-2 h-0.5 bg-white"></div>
-      </div>
-    );
+  const config: Record<string, { label: string; bg: string; icon: string }> = {
+    GOOD: { label: 'HIT', bg: 'bg-green-600', icon: '✓' },
+    BAD: { label: 'FLOP', bg: 'bg-red-600', icon: '✗' },
+    INFO: { label: 'NEWS', bg: 'bg-blue-600', icon: 'i' },
+    GOSSIP: { label: 'GOSSIP', bg: 'bg-purple-600', icon: '★' },
+    AUCTION: { label: 'AUCTION', bg: 'bg-orange-600', icon: '$' },
+    AD: { label: 'AD', bg: 'bg-yellow-600', icon: '»' },
+  };
+
+  const badge = config[type] || config.INFO;
+
   return (
-    <div className="w-4 h-4 bg-blue-500 rounded-sm border border-blue-800 flex items-center justify-center shadow-sm">
-      <span className="text-[10px] text-white font-bold">i</span>
+    <div className={`${badge.bg} text-white text-[8px] font-bold px-1.5 py-0.5 rounded-sm inline-flex items-center gap-0.5 shadow-sm whitespace-nowrap`}>
+      <span>{badge.icon}</span>
+      <span>{badge.label}</span>
     </div>
   );
 };
@@ -53,6 +54,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
   const { gameState: supabaseGameState } = useGameState();
   const { ownedScripts } = useOwnedScripts();
   const { clock, formatTimeRemaining, getMonthName, isAwardSeason } = useGlobalClock();
+  const { events: multiplayerEvents } = useEvents();
 
   // Use Supabase balance if available, fallback to local state
   const currentBalance = supabaseGameState?.balance ?? state.balance;
@@ -71,10 +73,8 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
   const moviesReleased = state.projects.filter(p => p.status === "Released").length;
   const scriptsOwned = ownedScripts.length;
 
-  // Generate random profile icon once
-  const [profileIcon] = useState(
-    () => PROFILE_ICONS[Math.floor(Math.random() * PROFILE_ICONS.length)]
-  );
+  // Constant profile icon for player
+  const profileIcon = "/images/profile-fish.jpg";
 
   const allStudios = [
     {
@@ -91,7 +91,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
     })),
   ].sort((a, b) => b.revenue - a.revenue);
 
-  const recentEvents = state.events.slice(-20).reverse();
+  const recentEvents = multiplayerEvents.slice(-20).reverse();
 
   return (
     <div className="flex flex-col h-full bg-[#ece9d8] overflow-hidden">
@@ -303,20 +303,20 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                     <tr>
                       <th className="px-3 py-2 border-r border-gray-200 w-10 text-center">Rank</th>
                       <th className="px-3 py-2 border-r border-gray-200">Studio</th>
-                      <th className="px-3 py-2 text-right">Yearly Gross</th>
+                      <th className="px-3 py-2 text-right">Total Gross</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {(() => {
-                      // Calculate Player's Real Yearly Gross
-                      const playerYearlyGross = state.projects
-                        .filter(p => p.status === "Released" && p.releaseYear === (clock ? clock.year : state.year))
+                      // Calculate Player's Total Gross (All-Time)
+                      const playerTotalGross = state.projects
+                        .filter(p => p.status === "Released")
                         .reduce((sum, p) => sum + p.revenue, 0);
 
                       const rankedStudios = [
                         {
                           name: studioName,
-                          revenue: playerYearlyGross,
+                          revenue: playerTotalGross,
                           id: "player",
                           color: "#0058ee",
                           tier: studioTierInfo.tier,
@@ -407,7 +407,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-[#f8f8f8] border-b border-gray-200 sticky top-0 z-10">
                             <tr>
-                                <th className="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider w-8">Type</th>
+                                <th className="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider w-16">Type</th>
                                 <th className="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">Headline</th>
                             </tr>
                         </thead>

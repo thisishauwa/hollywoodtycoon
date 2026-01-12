@@ -38,6 +38,8 @@ import { useGlobalClock } from "./hooks/useGlobalClock";
 import { useProjects } from "./hooks/useProjects";
 import { useAwards } from "./hooks/useAwards";
 import { supabase } from "./lib/supabase";
+import { ToastContainer } from "./contexts/ToastContext";
+import { useGameNotifications } from "./hooks/useGameNotifications";
 
 const uuid = () =>
   "id-" +
@@ -70,7 +72,9 @@ const App: React.FC = () => {
   const { projects: dbProjects, updateProject, createProject } = useProjects();
   const { actors: dbActors, loading: actorsLoading } = useActors();
   const { ceremonies: dbCeremonies, createCeremony, updateCeremony } = useAwards();
-
+  
+  // Game notifications
+  const notifications = useGameNotifications();
   // Track last processed month/year to prevent duplicate events
   const lastProcessedTime = useRef<{ month: number; year: number } | null>(
     null
@@ -220,17 +224,34 @@ const App: React.FC = () => {
   }, [multiplayerEvents]);
 
   // Sync multiplayerGameState (with merged clock) to local gameState
+  // Only update when actual values change to avoid infinite loop
   useEffect(() => {
     if (multiplayerGameState) {
-      setGameState((prev) => ({
-        ...prev,
-        balance: multiplayerGameState.balance,
-        reputation: multiplayerGameState.reputation,
-        month: multiplayerGameState.month, // From global clock via useGameState
-        year: multiplayerGameState.year,   // From global clock via useGameState
-      }));
+      setGameState((prev) => {
+        // Only update if values actually changed
+        if (
+          prev.balance !== multiplayerGameState.balance ||
+          prev.reputation !== multiplayerGameState.reputation ||
+          prev.month !== multiplayerGameState.month ||
+          prev.year !== multiplayerGameState.year
+        ) {
+          return {
+            ...prev,
+            balance: multiplayerGameState.balance,
+            reputation: multiplayerGameState.reputation,
+            month: multiplayerGameState.month,
+            year: multiplayerGameState.year,
+          };
+        }
+        return prev;
+      });
     }
-  }, [multiplayerGameState]);
+  }, [
+    multiplayerGameState?.balance,
+    multiplayerGameState?.reputation,
+    multiplayerGameState?.month,
+    multiplayerGameState?.year,
+  ]);
 
   // Sync global clock to gameState.month/year (DEPRECATED - now using multiplayerGameState)
   useEffect(() => {
@@ -652,6 +673,22 @@ const App: React.FC = () => {
                 releaseResult.revenueResult.totalRevenue / 1000000
               ).toFixed(1)}M (${releaseResult.revenueResult.performance})`
             );
+
+            // Toast notification for film release
+            const totalCost = movie.productionBudget + movie.marketingBudget;
+            const profit = releaseResult.revenueResult.totalRevenue - totalCost;
+            
+            if (profit > 0) {
+              notifications.notifyFilmSuccess(movie.title, profit);
+            } else if (profit < -totalCost * 0.3) {
+              notifications.notifyFilmFlopped(movie.title, profit);
+            } else {
+              notifications.notifyFilmReleased(movie.title, () => {
+                setActiveTab('releases');
+                focusWindow('manager');
+              });
+            }
+
 
             // Release actors from production back to "On Hiatus" (if contracted) or "Available"
             // Only sync actors with valid UUID IDs (local seed actors have simple IDs like "a1")
@@ -1135,6 +1172,8 @@ const App: React.FC = () => {
         </div>
       )}
 
+
+
       <div className="absolute inset-0 p-4 flex flex-col items-start gap-4 z-0 pointer-events-none">
         <DesktopIcon
           icon="/images/My computer.ico"
@@ -1284,6 +1323,9 @@ const App: React.FC = () => {
         onToggleWindow={(id) => toggleWindowMinimize(id)}
         onStartClick={() => setShowStartMenu(!showStartMenu)}
       />
+      
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 };

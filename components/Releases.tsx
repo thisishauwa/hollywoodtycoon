@@ -17,14 +17,6 @@ const getQualityStars = (quality: number): string => {
   return "☆☆☆☆☆";
 };
 
-// Get profit/loss info
-const getProfitInfo = (movie: Movie) => {
-  const totalCost = movie.productionBudget + movie.marketingBudget;
-  const profit = movie.revenue - totalCost;
-  const roi = totalCost > 0 ? ((profit / totalCost) * 100) : 0;
-  return { profit, roi, totalCost };
-};
-
 // Box Office Charts Tab
 const BoxOfficeCharts: React.FC<{ state: GameState }> = ({ state }) => {
   const { user } = useAuth();
@@ -40,245 +32,279 @@ const BoxOfficeCharts: React.FC<{ state: GameState }> = ({ state }) => {
     .slice(0, 10);
 
   return (
-    <div className="p-3 space-y-4 overflow-y-auto h-full">
-      {/* This Year's Rankings */}
-      <div className="bg-[#ece9d8] bevel-outset p-1">
-        <div className="bg-gradient-to-r from-[#0058ee] to-[#0040dd] text-white px-2 py-1 mb-1">
-          <span className="text-[10px] font-bold uppercase">📊 {state.year} Box Office Rankings</span>
-        </div>
-        <div className="bg-white bevel-inset p-2">
-          {thisYearMovies.length === 0 ? (
-            <p className="text-[10px] text-gray-500 italic text-center py-2">No releases this year</p>
-          ) : (
-            <table className="w-full text-[9px]">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-1 font-bold text-gray-600">#</th>
-                  <th className="text-left py-1 font-bold text-gray-600">Title</th>
-                  <th className="text-left py-1 font-bold text-gray-600">Studio</th>
-                  <th className="text-right py-1 font-bold text-gray-600">Gross</th>
-                  <th className="text-center py-1 font-bold text-gray-600">Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {thisYearMovies.map((movie, idx) => {
-                  const studio = movie.studioId === user?.id
-                    ? state.studioName
-                    : state.rivals.find(r => r.id === movie.studioId)?.name || 'Unknown';
-                  const isPlayer = movie.studioId === user?.id;
-                  return (
-                    <tr
-                      key={movie.id}
-                      className={`border-b border-gray-100 ${isPlayer ? 'bg-yellow-50' : ''}`}
-                    >
-                      <td className="py-1 font-bold text-[#003399]">{idx + 1}</td>
-                      <td className="py-1 truncate max-w-[120px]" title={movie.title}>
-                        {isPlayer && <span className="text-yellow-600 mr-1">★</span>}
-                        {movie.title}
-                      </td>
-                      <td className="py-1 text-gray-500 truncate max-w-[80px]">{studio}</td>
-                      <td className="py-1 text-right font-mono text-green-700">
-                        ${(movie.revenue / 1000000).toFixed(1)}M
-                      </td>
-                      <td className="py-1 text-center text-yellow-500">
-                        {getQualityStars(movie.quality)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+    <div className="flex flex-col h-full bg-white font-tahoma text-[11px] overflow-hidden">
+       {/* Info Bar */}
+      <div className="bg-[#ece9d8] p-2 border-b border-[#d8d0c8] flex items-center gap-2">
+         <img src="/images/info.svg" className="w-5 h-5" alt="Charts" />
+         <div className="flex flex-col">
+            <span className="font-bold text-gray-800">Box Office & Rankings</span>
+            <span className="text-[9px] text-gray-500">Industry Performance Data</span>
+         </div>
       </div>
 
-      {/* All-Time Top 10 */}
-      <div className="bg-[#ece9d8] bevel-outset p-1">
-        <div className="bg-gradient-to-r from-[#800080] to-[#600060] text-white px-2 py-1 mb-1">
-          <span className="text-[10px] font-bold uppercase">🏆 All-Time Top 10</span>
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-white">
+        
+        {/* THIS YEAR CHART */}
+        <div className="w-full">
+            <h3 className="text-[#003399] font-bold text-[12px] mb-1 flex items-center gap-1 border-b border-[#003399] pb-0.5">
+                <img src="/images/Documents.ico" className="w-4 h-4" /> 
+                {state.year} Box Office Leaders
+            </h3>
+            {thisYearMovies.length === 0 ? (
+                <div className="text-gray-400 italic p-4 text-center border border-dashed border-gray-300 rounded">
+                    Waiting for box office results...
+                </div>
+            ) : (
+                <table className="w-full border-collapse">
+                    <thead>
+                        <tr className="bg-[#ece9d8] text-gray-600 border-b border-[#d8d0c8]">
+                            <th className="text-left px-2 py-1 w-8">#</th>
+                            <th className="text-left px-2 py-1">Title</th>
+                            <th className="text-left px-2 py-1">Studio</th>
+                            <th className="text-right px-2 py-1">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {thisYearMovies.map((m, i) => (
+                             <tr key={m.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                <td className="px-2 py-1 font-bold text-gray-500">{i + 1}</td>
+                                <td className="px-2 py-1 text-[#003399] font-medium">{m.title}</td>
+                                <td className="px-2 py-1 text-gray-500 text-[10px]">
+                                    {m.studioId === user?.id ? "You" : state.rivals.find(r => r.id === m.studioId)?.name || "Unknown"}
+                                </td>
+                                <td className="px-2 py-1 text-right font-bold text-green-700">
+                                    ${(m.revenue / 1000000).toFixed(1)}M
+                                </td>
+                             </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
         </div>
-        <div className="bg-white bevel-inset p-2">
-          {allTimeTop.length === 0 ? (
-            <p className="text-[10px] text-gray-500 italic text-center py-2">No releases yet</p>
-          ) : (
-            <table className="w-full text-[9px]">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-1 font-bold text-gray-600">#</th>
-                  <th className="text-left py-1 font-bold text-gray-600">Title</th>
-                  <th className="text-left py-1 font-bold text-gray-600">Year</th>
-                  <th className="text-right py-1 font-bold text-gray-600">Gross</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allTimeTop.map((movie, idx) => {
-                  const isPlayer = movie.studioId === user?.id;
-                  return (
-                    <tr
-                      key={movie.id}
-                      className={`border-b border-gray-100 ${isPlayer ? 'bg-yellow-50' : ''}`}
-                    >
-                      <td className="py-1 font-bold text-[#800080]">{idx + 1}</td>
-                      <td className="py-1 truncate max-w-[150px]" title={movie.title}>
-                        {isPlayer && <span className="text-yellow-600 mr-1">★</span>}
-                        {movie.title}
-                      </td>
-                      <td className="py-1 text-gray-500">{movie.releaseYear}</td>
-                      <td className="py-1 text-right font-mono text-green-700 font-bold">
-                        ${(movie.revenue / 1000000).toFixed(1)}M
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+
+        {/* ALL TIME CHART */}
+         <div className="w-full">
+            <h3 className="text-[#003399] font-bold text-[12px] mb-1 flex items-center gap-1 border-b border-[#003399] pb-0.5">
+                <img src="/images/Documents.ico" className="w-4 h-4" /> 
+                All-Time Blockbusters
+            </h3>
+             <table className="w-full border-collapse">
+                    <thead>
+                        <tr className="bg-[#ece9d8] text-gray-600 border-b border-[#d8d0c8]">
+                            <th className="text-left px-2 py-1 w-8">#</th>
+                            <th className="text-left px-2 py-1">Title</th>
+                            <th className="text-left px-2 py-1">Year</th>
+                            <th className="text-right px-2 py-1">Gross</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {allTimeTop.map((m, i) => (
+                             <tr key={m.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                <td className="px-2 py-1 font-bold text-gray-500">{i + 1}</td>
+                                <td className="px-2 py-1 text-[#003399] font-medium">{m.title}</td>
+                                <td className="px-2 py-1 text-gray-500">{m.releaseYear}</td>
+                                <td className="px-2 py-1 text-right font-bold text-green-700">
+                                    ${(m.revenue / 1000000).toFixed(1)}M
+                                </td>
+                             </tr>
+                        ))}
+                    </tbody>
+                </table>
         </div>
+
       </div>
     </div>
   );
 };
 
-// My Films Tab
+// My Films Tab - Renamed to "Detailed List"
 const MyFilms: React.FC<{ state: GameState }> = ({ state }) => {
   const { user } = useAuth();
+  const [sortCol, setSortCol] = useState<'title' | 'release' | 'genre' | 'revenue' | 'rating'>('release');
+  const [sortDesc, setSortDesc] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   const released = state.projects
-    .filter((p) => p.status === ProjectStatus.Released && p.studioId === user?.id)
-    .reverse();
+    .filter((p) => p.status === ProjectStatus.Released && p.studioId === user?.id);
+
+  const sorted = [...released].sort((a, b) => {
+      let valA, valB;
+      switch(sortCol) {
+          case 'title': valA = a.title; valB = b.title; break;
+          case 'release': valA = a.releaseYear * 12 + a.releaseMonth; valB = b.releaseYear * 12 + b.releaseMonth; break;
+          case 'genre': valA = a.genre; valB = b.genre; break;
+          case 'revenue': valA = a.revenue; valB = b.revenue; break;
+          case 'rating': valA = a.quality; valB = b.quality; break;
+          default: return 0;
+      }
+      if (valA < valB) return sortDesc ? 1 : -1;
+      if (valA > valB) return sortDesc ? -1 : 1;
+      return 0;
+  });
+
+  const handleSort = (col: typeof sortCol) => {
+      if (sortCol === col) setSortDesc(!sortDesc);
+      else {
+          setSortCol(col);
+          setSortDesc(true);
+      }
+  }
+
+  const SortHeader: React.FC<{ label: string; col: typeof sortCol; width?: string }> = ({ label, col, width }) => (
+      <th 
+        className={`px-2 py-0.5 text-left font-normal text-gray-600 border-r border-[#d8d0c8] cursor-pointer hover:bg-[#f5f2e6] active:bg-[#e0decb] select-none ${width}`}
+        onClick={() => handleSort(col)}
+      >
+        <div className="flex items-center justify-between">
+            {label}
+            {sortCol === col && (
+                <span className="text-[9px] text-gray-400 ml-1">{sortDesc ? '▼' : '▲'}</span>
+            )}
+        </div>
+      </th>
+  )
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {released.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
-          <img
-            src="/images/Documents.ico"
-            alt="No files"
-            className="w-16 h-16 mb-2 opacity-20"
-          />
-          <p className="text-[10px] font-bold uppercase tracking-widest">
-            No archival footage found
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 overflow-y-auto h-full">
-          {released.map((movie) => {
-            const { profit, roi, totalCost } = getProfitInfo(movie);
-            const isProfit = profit >= 0;
-            const cast = state.actors.filter(a => movie.cast.includes(a.id));
-
-            return (
-              <div
-                key={movie.id}
-                className="bg-[#ece9d8] bevel-outset p-1 shrink-0"
-              >
-                {/* Title Bar */}
-                <div className="bg-gradient-to-r from-[#0058ee] to-[#0040dd] text-white px-2 py-1 flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1 flex-1 min-w-0">
-                    <span className="text-[10px]">🎬</span>
-                    <span className="text-[11px] font-bold truncate">
-                      {movie.title}
-                    </span>
-                  </div>
-                  <span className="text-[9px] bg-white/20 px-1 rounded shrink-0">
-                    {movie.genre}
-                  </span>
+    <div className="flex bg-white h-full font-tahoma text-[11px]">
+        {/* SIDEBAR */}
+        <div className="w-48 bg-gradient-to-b from-[#7b9fe9] to-[#6079d6] p-3 flex flex-col gap-3 border-r border-[#003399] overflow-y-auto shrink-0">
+             {/* Film Tasks Panel */}
+             <div className="bg-white rounded-t-sm rounded-b-sm overflow-hidden shadow-sm">
+                <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-3 py-1 flex justify-between items-center cursor-pointer">
+                    <span className="font-bold text-white">Film Tasks</span>
                 </div>
-
-                {/* Content */}
-                <div className="bg-white bevel-inset p-2">
-                  {/* Quality Stars */}
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-yellow-500 text-[14px]">{getQualityStars(movie.quality)}</span>
-                    <span className="text-[9px] text-gray-500">({movie.quality}% quality)</span>
-                  </div>
-
-                  {/* Financial Summary */}
-                  <div className="bg-gray-50 border border-gray-200 p-1.5 mb-2 rounded">
-                    <div className="grid grid-cols-2 gap-1 text-[9px]">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Budget:</span>
-                        <span className="font-mono">${(totalCost / 1000000).toFixed(1)}M</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Gross:</span>
-                        <span className="font-mono font-bold text-[#003399]">
-                          ${(movie.revenue / 1000000).toFixed(1)}M
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Profit:</span>
-                        <span className={`font-mono font-bold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
-                          {isProfit ? '+' : ''}${(profit / 1000000).toFixed(1)}M
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">ROI:</span>
-                        <span className={`font-mono font-bold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
-                          {roi > 0 ? '+' : ''}{roi.toFixed(0)}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Info Section */}
-                  <div className="space-y-1 mb-2">
-                    <div className="flex items-center justify-between text-[9px]">
-                      <span className="text-gray-500 font-bold uppercase">
-                        Released:
-                      </span>
-                      <span className="font-bold text-[#003399]">
-                        Q{Math.ceil(movie.releaseMonth / 3)}{" "}
-                        {movie.releaseYear}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-[9px]">
-                      <span className="text-gray-500 font-bold uppercase">
-                        Chemistry:
-                      </span>
-                      <span className="font-bold text-purple-600">
-                        {movie.chemistry > 0 ? `+${movie.chemistry}` : movie.chemistry}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Cast */}
-                  {cast.length > 0 && (
-                    <div className="border-t border-gray-200 pt-1.5 mb-2">
-                      <div className="text-[8px] text-gray-400 font-bold uppercase mb-1">
-                        Cast:
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {cast.map(actor => (
-                          <span
-                            key={actor.id}
-                            className="text-[8px] bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200"
-                            title={`${actor.name} (${actor.tier})`}
-                          >
-                            {actor.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Review */}
-                  <div className="border-t border-gray-200 pt-1">
-                    <div className="text-[8px] text-gray-400 font-bold uppercase mb-0.5">
-                      Review:
-                    </div>
-                    <p
-                      className="text-[10px] text-gray-700 italic leading-snug"
-                      style={{ fontFamily: "Tahoma, sans-serif" }}
-                    >
-                      "{movie.reviews?.[0] || "..."}"
-                    </p>
-                  </div>
+                <div className="bg-[#d6dff7] p-2 flex flex-col gap-1 text-[#215dc6]">
+                    <button className="text-left hover:underline px-1 py-0.5 flex items-center gap-1">
+                        <img src="/images/Documents.ico" className="w-3 h-3" />
+                        <span>View script details</span>
+                    </button>
+                    <button className="text-left hover:underline px-1 py-0.5 flex items-center gap-1">
+                        <img src="/images/Video.ico" className="w-3 h-3" />
+                         <span>Distribute to DVD</span>
+                    </button>
+                    <button className="text-left hover:underline px-1 py-0.5 flex items-center gap-1 opacity-50 cursor-not-allowed">
+                        <img src="/images/Chart.ico" className="w-3 h-3 grayscale" />
+                        <span>Archive record</span>
+                    </button>
                 </div>
-              </div>
-            );
-          })}
+             </div>
+             
+             {/* Details Panel */}
+             <div className="bg-white rounded-t-sm rounded-b-sm overflow-hidden shadow-sm">
+                <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-3 py-1 flex justify-between items-center cursor-pointer">
+                    <span className="font-bold text-white">Details</span>
+                </div>
+                <div className="bg-[#d6dff7] p-2 text-[#215dc6] min-h-[100px]">
+                    {selectedId ? (
+                        <div className="text-[10px] space-y-1">
+                            {(() => {
+                                const m = released.find(f => f.id === selectedId);
+                                if (!m) return null;
+                                const totalCost = m.productionBudget + m.marketingBudget;
+                                const profit = m.revenue - totalCost;
+                                return (
+                                    <>
+                                        <div className="font-bold text-[11px] mb-1">{m.title}</div>
+                                        <div className="grid grid-cols-[50px_1fr] gap-x-1">
+                                            <span className="opacity-70">Genre:</span>
+                                            <span>{m.genre}</span>
+                                            
+                                            <span className="opacity-70">Quality:</span>
+                                            <span>{m.quality}%</span>
+                                            
+                                            <span className="opacity-70">Budget:</span>
+                                            <span>${(totalCost/1000000).toFixed(1)}M</span>
+                                            
+                                            <span className="opacity-70">Profit:</span>
+                                            <span className={profit >= 0 ? "text-green-700 font-bold" : "text-red-700 font-bold"}>
+                                                {profit >= 0 ? '+' : ''}${(profit/1000000).toFixed(1)}M
+                                            </span>
+                                        </div>
+                                        <div className="italic mt-2 p-1 bg-white/50 border border-white/60 rounded text-gray-600">
+                                            "{m.reviews?.[0] || '...'}"
+                                        </div>
+                                    </>
+                                )
+                            })()}
+                        </div>
+                    ) : (
+                        <div className="text-[10px] opacity-70 italic p-2 text-center">
+                            Select a film to view details.
+                        </div>
+                    )}
+                </div>
+             </div>
         </div>
-      )}
+
+        {/* MAIN LIST VIEW */}
+        <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
+            <div className="py-1 px-2 text-gray-500 border-b border-[#d8d0c8]">
+                Address: <span className="text-black ml-1 border border-[#ccc] px-1 bg-white w-64 inline-block">C:\My Documents\My Films\</span>
+            </div>
+            
+            <div className="flex-1 overflow-auto bg-white">
+                <table className="w-full border-collapse">
+                    <thead className="sticky top-0 bg-[#ece9d8] hover:bg-[#f1efe6] shadow-sm z-10 border-b border-[#d4d0c8]">
+                        <tr>
+                            <th className="w-6 border-r border-[#d4d0c8]"></th>
+                            <SortHeader label="Name" col="title" />
+                            <SortHeader label="Date Modified" col="release" width="w-24" />
+                            <SortHeader label="Type" col="genre" width="w-24" />
+                            <SortHeader label="Size (Gross)" col="revenue" width="w-24 text-right" />
+                            <SortHeader label="Rating" col="rating" width="w-20" />
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white cursor-default">
+                        {sorted.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="p-8 text-center text-gray-400 italic">
+                                    <img src="/images/Documents.ico" className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                                    No films in archive.
+                                </td>
+                            </tr>
+                        ) : sorted.map((movie) => {
+                            const isSelected = selectedId === movie.id;
+                            return (
+                                <tr 
+                                    key={movie.id}
+                                    onClick={() => setSelectedId(movie.id)}
+                                    className={`${isSelected ? 'bg-[#316ac5] text-white' : 'hover:bg-[#e8f1ff] text-gray-800'}`}
+                                >
+                                    <td className="px-2 py-0.5 text-center">
+                                        <img src="/images/Video.ico" className="w-3 h-3" />
+                                    </td>
+                                    <td className="px-2 py-0.5 whitespace-nowrap">{movie.title}</td>
+                                    <td className="px-2 py-0.5 whitespace-nowrap">
+                                        {movie.releaseMonth}/{movie.releaseYear}
+                                    </td>
+                                    <td className="px-2 py-0.5 whitespace-nowrap text-gray-500">{movie.genre} Movie</td>
+                                    <td className="px-2 py-0.5 text-right font-mono">
+                                        ${(movie.revenue/1000000).toFixed(1)}M
+                                    </td>
+                                    <td className="px-2 py-0.5 text-center text-yellow-500 text-[10px]">
+                                        {getQualityStars(movie.quality)}
+                                    </td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div className="h-5 bg-[#ece9d8] border-t border-[#aca899] flex items-center select-none cursor-default font-tahoma text-[11px] shrink-0">
+                 <div className="flex-1 flex items-center gap-2 px-2 border-r border-[#aca899] shadow-[1px_0_0_white]">
+                      <span className="font-bold">{released.length} objects</span>
+                      {released.length > 0 && (
+                        <span className="text-gray-600 ml-2 border-l border-white pl-2">
+                             Disk free space: {(state.balance / 1000000).toFixed(2)} MB
+                        </span>
+                      )}
+                 </div>
+                 <div className="w-[150px] px-2 border-l border-white border-r border-[#aca899] shadow-[1px_0_0_white_inset] truncate">
+                     <span className="truncate">My Computer</span>
+                 </div>
+            </div>
+        </div>
     </div>
   );
 };
@@ -287,42 +313,66 @@ export const ReleasedFilms: React.FC<Props> = ({ state }) => {
   const [activeTab, setActiveTab] = useState<'my-films' | 'charts'>('my-films');
 
   return (
-    <div className="h-full flex flex-col bg-[#ece9d8] overflow-hidden p-2">
-      <div className="flex flex-col h-full bg-[#ece9d8] bevel-outset overflow-hidden">
-        {/* Header with tabs */}
-        <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0 flex items-center justify-between">
-          <span>Historical Filmography Records</span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setActiveTab('my-films')}
-              className={`px-2 py-0.5 text-[9px] rounded ${
-                activeTab === 'my-films'
-                  ? 'bg-white text-[#0058ee]'
-                  : 'bg-white/20 hover:bg-white/30'
-              }`}
-            >
-              My Films
-            </button>
-            <button
-              onClick={() => setActiveTab('charts')}
-              className={`px-2 py-0.5 text-[9px] rounded ${
-                activeTab === 'charts'
-                  ? 'bg-white text-[#0058ee]'
-                  : 'bg-white/20 hover:bg-white/30'
-              }`}
-            >
-              Box Office Charts
-            </button>
-          </div>
+    <div className="h-full flex flex-col bg-[#ece9d8] font-tahoma text-[11px]">
+        {/* MENUBAR (Visual Only) */}
+        <div className="h-5 bg-[#ece9d8] flex items-center px-1 border-b border-[#d4d0c8] select-none">
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">File</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Edit</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">View</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Favorites</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Tools</span>
+            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Help</span>
         </div>
 
-        {/* Content */}
-        {activeTab === 'my-films' ? (
-          <MyFilms state={state} />
-        ) : (
-          <BoxOfficeCharts state={state} />
-        )}
-      </div>
+        {/* STANDARD BUTTONS TOOLBAR */}
+        <div className="h-10 bg-[#ece9d8] border-b border-[#d4d0c8] flex items-center px-2 gap-1 shrink-0 select-none">
+            <div className="flex items-center gap-1 pr-1 border-r border-[#d4d0c8] mr-1">
+                <button className="flex items-center gap-1 hover:brightness-110 active:brightness-95 group">
+                    <img src="/images/Frame 99.svg" className="w-5 h-5 transform scale-x-[-1]" alt="Back" />
+                    <span className="text-[11px]">Back</span>
+                    <span className="text-[8px] ml-1">▼</span>
+                </button>
+                <img src="/images/Frame 99.svg" className="w-5 h-5 opacity-50" alt="Forward" />
+            </div>
+
+            <button className="p-1 hover:border border-[#d4d0c8] hover:shadow-sm active:shadow-inner rounded mx-1">
+                <img src="/images/Up.png" className="w-5 h-5 opacity-50" onError={(e) => e.currentTarget.src='/images/Documents.ico'} />
+            </button>
+
+            <div className="w-[1px] h-6 bg-[#d4d0c8] mx-1"></div>
+
+            <button 
+                onClick={() => setActiveTab('my-films')}
+                className={`flex flex-col items-center justify-center px-2 py-0.5 rounded border ${
+                    activeTab === 'my-films' 
+                    ? 'bg-[#e0decb] border-[#808080] shadow-inner' 
+                    : 'border-transparent hover:border-[#d4d0c8] hover:shadow-sm'
+                }`}
+            >
+                <img src="/images/Documents.ico" className="w-5 h-5" />
+                <span className="text-[9px] -mt-0.5">My Films</span>
+            </button>
+            <button 
+                onClick={() => setActiveTab('charts')}
+                className={`flex flex-col items-center justify-center px-2 py-0.5 rounded border ${
+                    activeTab === 'charts' 
+                    ? 'bg-[#e0decb] border-[#808080] shadow-inner' 
+                    : 'border-transparent hover:border-[#d4d0c8] hover:shadow-sm'
+                }`}
+            >
+               <img src="/images/Chart.ico" className="w-5 h-5" />
+                <span className="text-[9px] -mt-0.5">Charts</span>
+            </button>
+        </div>
+
+        {/* CONTENT FRAME */}
+        <div className="flex-1 bg-white border-t border-[#808080] overflow-hidden">
+            {activeTab === 'my-films' ? (
+                <MyFilms state={state} />
+            ) : (
+                <BoxOfficeCharts state={state} />
+            )}
+        </div>
     </div>
   );
 };

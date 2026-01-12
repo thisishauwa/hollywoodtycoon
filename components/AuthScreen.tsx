@@ -38,10 +38,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
 
-  // Generate random profile icon once at mount
-  const [profileIcon] = useState(
-    () => PROFILE_ICONS[Math.floor(Math.random() * PROFILE_ICONS.length)]
-  );
+  // Default profile icon for users
+  const [profileIcon] = useState("/images/profile-fish.jpg");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +130,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 >
                   <div className="w-20 h-20 relative">
                     <img
-                      src={profileIcon}
+                      src="/images/profile-airplane.jpg"
                       alt="Sign In"
                       className="w-20 h-20 object-cover border-2 border-transparent group-hover:border-[#FFCC00] transition-colors"
                       style={{ borderRadius: "2px" }}
@@ -163,7 +161,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 >
                   <div className="w-20 h-20 relative">
                     <img
-                      src={profileIcon}
+                      src="/images/profile-chess.jpg"
                       alt="Create Account"
                       className="w-20 h-20 object-cover border-2 border-transparent group-hover:border-[#FFCC00] transition-colors"
                       style={{ borderRadius: "2px" }}
@@ -193,7 +191,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <div className="flex gap-4">
                   <div className="w-20 h-20 relative shrink-0">
                     <img
-                      src={profileIcon}
+                      src="/images/profile-airplane.jpg"
                       alt="Sign In"
                       className="w-20 h-20 object-cover border-2 border-[#FFCC00]"
                       style={{ borderRadius: "2px" }}
@@ -277,7 +275,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <div className="flex gap-4">
                   <div className="w-20 h-20 relative shrink-0">
                     <img
-                      src={profileIcon}
+                      src="/images/profile-chess.jpg"
                       alt="Create Account"
                       className="w-20 h-20 object-cover border-2 border-[#FFCC00]"
                       style={{ borderRadius: "2px" }}

@@ -86,6 +86,7 @@ export const useGlobalClock = () => {
           filter: "id=eq.1",
         },
         (payload) => {
+          console.log("[Clock] Realtime UPDATE detected:", payload);
           const data = payload.new as any;
           const clockData: GlobalClock = {
             month: data.month,
@@ -93,11 +94,14 @@ export const useGlobalClock = () => {
             lastAdvancedAt: new Date(data.last_advanced_at),
             advanceIntervalHours: data.advance_interval_hours,
           };
+          console.log("[Clock] Setting clock to:", clockData);
           setClock(clockData);
           updateTimeRemaining(clockData);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[Clock] Subscription status:", status);
+      });
 
     // Update countdown every minute
     const countdownInterval = setInterval(() => {
