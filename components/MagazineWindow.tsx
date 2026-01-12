@@ -25,9 +25,9 @@ const CATEGORY_CONFIG: Record<NewsCategory, { label: string; color: string; filt
   business: { label: 'Industry Biz', color: '#4b0082', filter: e => e.message.includes('CONTRACT') || e.message.includes('WIRE') || e.message.includes('AUCTION') },
 };
 
-const formatDate = (month: number, year: number): string => {
+const formatDate = (month: number): string => {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[month - 1].toUpperCase()} ${year}`;
+  return `${months[month - 1].toUpperCase()}`;
 };
 
 
@@ -116,7 +116,7 @@ export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMini
              </div>
              <div className="text-right">
                 <div className="text-[10px] font-bold text-gray-600 mb-1">
-                  EDITION: U.S. | GAME TIME: {formatDate(clock?.month || state.month, clock?.year || state.year)}
+                  EDITION: U.S. | GAME TIME: {formatDate(clock?.month || state.month)}
                 </div>
                 <div className="bg-white border border-gray-400 p-0.5 flex justify-between items-center w-40">
                   <input 
@@ -209,7 +209,7 @@ export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMini
                            </h3>
                            <div className="flex items-center gap-2 mt-0.5">
                              <div className="text-[9px] text-gray-400">
-                               {formatDate(event.month, event.year || state.year)}
+                               {formatDate(event.month)}
                              </div>
                            </div>
                         </div>

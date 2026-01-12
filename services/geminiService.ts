@@ -52,14 +52,18 @@ export const generateRandomEvent = async (year: number, actors: Actor[] = []): P
     const subject = actors.length > 0 ? actors[Math.floor(Math.random() * actors.length)] : null;
     const subjectName = subject ? subject.name : "A mystery celebrity";
 
+    // Safe API Key access
+    const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '');
+    const useAI = !!apiKey && Math.random() > 0.2;
+
     // Mostly use local headlines to save tokens
-    if (Math.random() > 0.2 || !process.env.API_KEY) {
+    if (!useAI) {
         const template = LOCAL_HEADLINE_TEMPLATES[Math.floor(Math.random() * LOCAL_HEADLINE_TEMPLATES.length)];
         return template.replace("{name}", subjectName);
     }
     
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey });
         const prompt = subject 
             ? `One short 2000s Hollywood gossip headline for ${year} about actor ${subject.name} (known for being ${subject.personality[0]}).`
             : `One short 2000s Hollywood gossip headline for ${year}.`;

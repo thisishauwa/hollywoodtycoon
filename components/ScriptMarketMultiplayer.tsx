@@ -9,8 +9,9 @@ import { useOwnedScripts } from "../hooks/useOwnedScripts";
 import { supabase } from "../lib/supabase";
 
 // Countdown timer component for bids
-const BidCountdown: React.FC<{ expiresAt: string }> = ({ expiresAt }) => {
+const BidCountdown: React.FC<{ expiresAt: string; onExpire?: () => void }> = ({ expiresAt, onExpire }) => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [hasExpired, setHasExpired] = useState(false);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -26,11 +27,18 @@ const BidCountdown: React.FC<{ expiresAt: string }> = ({ expiresAt }) => {
       setTimeLeft(remaining);
       if (remaining <= 0) {
         clearInterval(interval);
+        if (!hasExpired) {
+          setHasExpired(true);
+          // Trigger auction closure after a brief delay
+          setTimeout(() => {
+            onExpire?.();
+          }, 1500);
+        }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [expiresAt]);
+  }, [expiresAt, hasExpired, onExpire]);
 
   if (timeLeft <= 0) {
     return <span className="text-red-600 font-bold animate-pulse">CLOSING...</span>;
@@ -272,16 +280,20 @@ export const ScriptMarketMultiplayer: React.FC = () => {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [selectedScript, setSelectedScript] = useState<Script | null>(null);
 
+  // Function to close expired auctions and refresh data
+  const closeExpiredAuctions = async () => {
+    const { error } = await supabase.rpc("close_expired_auctions");
+    if (error) {
+      console.error("[ScriptMarket] Error closing expired auctions:", error);
+    } else {
+      console.log("[ScriptMarket] Closed expired auctions, refreshing...");
+      // Refresh bids to update the display
+      refetchAllBids();
+    }
+  };
+
   // Immediately close any expired auctions when component mounts
   useEffect(() => {
-    const closeExpiredAuctions = async () => {
-      const { error } = await supabase.rpc("close_expired_auctions");
-      if (error) {
-        console.error("[ScriptMarket] Error closing expired auctions:", error);
-      } else {
-        console.log("[ScriptMarket] Checked for expired auctions");
-      }
-    };
     closeExpiredAuctions();
   }, []);
 
@@ -401,7 +413,7 @@ export const ScriptMarketMultiplayer: React.FC = () => {
                             <span className="text-green-700 font-bold">${(bid.amount / 1000).toFixed(0)}k</span>
                         </div>
                         <div className="text-[9px] text-gray-500 truncate">{bid.scriptTitle}</div>
-                        {bid.expires_at && <div className="text-[9px] text-right"><BidCountdown expiresAt={bid.expires_at} /></div>}
+                        {bid.expires_at && <div className="text-[9px] text-right"><BidCountdown expiresAt={bid.expires_at} onExpire={closeExpiredAuctions} /></div>}
                     </div>
                  ))
              ) : (
@@ -518,7 +530,7 @@ export const ScriptMarketMultiplayer: React.FC = () => {
                                      <span className={`font-bold ${script.status === 'Owned' ? 'text-blue-600' : (highestBid ? 'text-red-800' : 'text-gray-400')}`}>
                                         {script.status === 'Owned' ? 'YOU' : bidderName}
                                      </span>
-                                     {highestBid?.expires_at && <span className="ml-2 text-[9px]"><BidCountdown expiresAt={highestBid.expires_at} /></span>}
+                                     {highestBid?.expires_at && <span className="ml-2 text-[9px]"><BidCountdown expiresAt={highestBid.expires_at} onExpire={closeExpiredAuctions} /></span>}
                                 </td>
                             </tr>
                         )})}

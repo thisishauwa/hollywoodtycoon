@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useSound } from "../contexts/SoundContext";
 
 export const RetroPanel: React.FC<{
   children: React.ReactNode;
@@ -317,7 +318,10 @@ export const StatusBar: React.FC<{
   }[];
   onToggleWindow: (id: string) => void;
   onStartClick?: () => void;
-}> = ({ items, activeWindows, onToggleWindow, onStartClick }) => (
+}> = ({ items, activeWindows, onToggleWindow, onStartClick }) => {
+  const { isMuted, toggleMute } = useSound();
+  
+  return (
   <div
     className="h-8 xp-taskbar-gradient flex items-center gap-0 z-[1000] w-full border-t border-[#1941a5] select-none shrink-0"
     style={{ fontFamily: "Tahoma, sans-serif" }}
@@ -362,6 +366,15 @@ export const StatusBar: React.FC<{
 
     {/* System Tray */}
     <div className="h-full bg-[#0996f1] border-l border-[#0873ba] shadow-[inset_2px_0_5px_rgba(0,0,0,0.2)] flex items-center px-3 gap-3 shrink-0">
+      {/* Sound Toggle Button */}
+      <button
+        onClick={toggleMute}
+        className="text-white text-sm hover:brightness-110 active:brightness-90 transition-all"
+        title={isMuted ? "Unmute sounds" : "Mute sounds"}
+      >
+        {isMuted ? "🔇" : "🔊"}
+      </button>
+      
       {items.map((item, i) => (
         <div
           key={i}
@@ -380,7 +393,8 @@ export const StatusBar: React.FC<{
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export const DesktopIcon: React.FC<{
   icon: string;

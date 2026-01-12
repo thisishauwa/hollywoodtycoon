@@ -295,7 +295,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
             <div className="h-full bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
               <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0 flex justify-between items-center">
                 <span>Box Office Power Rankings</span>
-                <span className="opacity-80 font-normal normal-case">{clock ? clock.year : state.year} Season</span>
+                <span className="opacity-80 font-normal normal-case">Current Season</span>
               </div>
               <div className="bg-white flex-1 overflow-y-auto">
                 <table className="w-full text-left border-collapse">
@@ -399,7 +399,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                 {/* SUBHEADER INFO */}
                 <div className="bg-[#f0f0f0] border-b border-gray-300 px-2 py-1 flex justify-between items-center text-[9px] text-gray-600 font-bold uppercase">
                     <span>{studioName} Edition</span>
-                    <span>{clock ? getMonthName(clock.month) + ' ' + clock.year : state.year}</span>
+                    <span>{clock ? getMonthName(clock.month) : 'Current Month'}</span>
                 </div>
 
                 {/* CONTENT AREA */}
@@ -429,7 +429,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
                                                 {e.message}
                                             </div>
                                             <div className="text-[9px] text-gray-400 mt-0.5 font-mono">
-                                                {getMonthName(e.month)} {e.year}
+                                                {getMonthName(e.month)}
                                             </div>
                                         </td>
                                     </tr>

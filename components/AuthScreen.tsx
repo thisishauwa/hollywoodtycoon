@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSound } from "../contexts/SoundContext";
 
 // Windows XP Profile Icons
 const PROFILE_ICONS = [
@@ -37,6 +38,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const { playSound } = useSound();
 
   // Default profile icon for users
   const [profileIcon] = useState("/images/profile-fish.jpg");
@@ -45,8 +47,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     e.preventDefault();
     if (mode === "signin") {
       await onSignIn(email, password);
+      // Play Windows XP startup sound on successful login
+      playSound('https://www.myinstants.com/media/sounds/windows-xp-startup.mp3', 0.4);
     } else if (mode === "signup") {
       await onSignUp(email, password, username);
+      // Play Windows XP startup sound on successful signup
+      playSound('https://www.myinstants.com/media/sounds/windows-xp-startup.mp3', 0.4);
     }
   };
 

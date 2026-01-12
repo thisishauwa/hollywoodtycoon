@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useSound } from './SoundContext';
 
 export interface Toast {
   id: string;
@@ -31,6 +32,7 @@ export const useToast = () => {
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const { playNotificationSound } = useSound();
 
   const addToast = useCallback((toast: Omit<Toast, 'id'>): string => {
     const id = `toast-${Date.now()}-${Math.random()}`;
@@ -43,13 +45,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts(prev => [...prev, newToast]);
 
     // Play Windows XP notification sound
-    try {
-      const audio = new Audio('https://www.myinstants.com/media/sounds/windows-xp-error.mp3');
-      audio.volume = 0.3; // 30% volume so it's not too loud
-      audio.play().catch(err => console.log('Audio play failed:', err));
-    } catch (err) {
-      console.log('Audio creation failed:', err);
-    }
+    playNotificationSound();
 
     // Auto-dismiss if duration > 0
     if (newToast.duration && newToast.duration > 0) {
@@ -59,7 +55,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     return id;
-  }, []);
+  }, [playNotificationSound]);
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));

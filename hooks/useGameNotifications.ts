@@ -102,6 +102,16 @@ export const useGameNotifications = () => {
       });
     },
 
+    // Script Acquired (Generic)
+    notifyScriptAcquired: (scriptTitle: string) => {
+      addToast({
+        type: 'info',
+        title: '📝 Script Acquired',
+        message: `Acquired rights to "${scriptTitle}".`,
+        duration: 4000,
+      });
+    },
+
     // Actor hired
     notifyActorHired: (actorName: string, salary: number) => {
       addToast({

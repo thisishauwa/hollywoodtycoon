@@ -61,7 +61,7 @@ export const StudioNetwork: React.FC<Props> = ({
   const [sendingMessage, setSendingMessage] = useState(false);
   const [transferring, setTransferring] = useState(false);
 
-  // Combine real players and AI rivals into one list
+  // Combine real players only (AI removed)
   const allStudios: DisplayStudio[] = [
     // Real players first
     ...otherStudios.map((s) => ({
@@ -70,17 +70,6 @@ export const StudioNetwork: React.FC<Props> = ({
       balance: s.balance,
       reputation: s.reputation,
       isRealPlayer: true,
-    })),
-    // Then AI rivals
-    ...state.rivals.map((r) => ({
-      id: r.id,
-      name: r.name,
-      balance: r.balance,
-      reputation: 50,
-      isRealPlayer: false,
-      relationship: r.relationship,
-      personality: r.personality,
-      ownedActors: r.ownedActors,
     })),
   ].sort((a, b) => b.balance - a.balance);
 
@@ -244,38 +233,6 @@ export const StudioNetwork: React.FC<Props> = ({
                 })}
               </>
             )}
-
-            {/* AI Studios Section */}
-            <div className="bg-gray-100 p-1 text-[10px] font-bold text-gray-500 border-b italic">
-              AI Studios
-            </div>
-            {allStudios.filter(s => !s.isRealPlayer).map((s) => (
-              <div
-                key={s.id}
-                onClick={() => setSelectedStudio(s)}
-                className={`p-1.5 cursor-pointer text-[11px] flex items-center gap-2 ${
-                  selectedStudio?.id === s.id
-                    ? "bg-blue-600 text-white shadow-inner"
-                    : "hover:bg-blue-50 text-black"
-                }`}
-              >
-                <span
-                  className={
-                    (s.relationship || 0) > 30
-                      ? "text-green-500"
-                      : (s.relationship || 0) < -30
-                      ? "text-red-500"
-                      : "text-gray-400"
-                  }
-                >
-                  ●
-                </span>
-                <span className="truncate flex-1 font-medium">{s.name}</span>
-                <span className="text-[9px] opacity-60">
-                  ({s.personality?.[0] || "AI"})
-                </span>
-              </div>
-            ))}
           </div>
           <div className="p-2 border-t bg-gray-50 flex gap-1 shrink-0">
             <button className="flex-1 bg-white border border-gray-400 text-[9px] font-bold py-1 shadow-sm active:shadow-inner">

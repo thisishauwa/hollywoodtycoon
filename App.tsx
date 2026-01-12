@@ -58,11 +58,43 @@ const App: React.FC = () => {
   const { user, profile, loading, signIn, signUp, signOut } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 bg-[#245edb] z-[9999] flex flex-col items-center justify-center p-8 text-center font-sans select-none">
+         <img 
+           src="/images/My computer.ico" 
+           alt="My Computer" 
+           className="w-24 h-24 mb-6 drop-shadow-md"
+         />
+         <h1 className="text-white text-2xl font-bold mb-3 drop-shadow-sm" style={{ fontFamily: 'Tahoma, sans-serif' }}>
+           Desktop Experience Only
+         </h1>
+         <p className="text-white text-sm max-w-xs leading-relaxed opacity-90" style={{ fontFamily: 'Tahoma, sans-serif' }}>
+           Hollywood Tycoon XP uses a sophisticated window management system designed for desktop computers.
+         </p>
+         <div className="mt-8 bg-white/10 rounded px-4 py-2 border border-white/20">
+           <p className="text-white/80 text-xs">Please return on a PC or Mac.</p>
+         </div>
+      </div>
+    );
+  }
 
   // Multiplayer hooks
   const { gameState: multiplayerGameState, loading: gameStateLoading, updateBalance } =
     useGameState();
-  const { ownedScripts: multiplayerOwnedScripts } = useOwnedScripts();
+  const { ownedScripts: multiplayerOwnedScripts, loading: ownedScriptsLoading } = useOwnedScripts();
   const { events: multiplayerEvents } = useEvents();
   const { clock, getMonthName } = useGlobalClock();
   const { studios: realStudios, loading: studiosLoading } = useStudios(
@@ -83,6 +115,9 @@ const App: React.FC = () => {
   const lastProductionProcessedTime = useRef<{ month: number; year: number } | null>(
     null
   );
+  // Refs for tracking script acquisitions
+  const prevOwnedScriptIds = useRef<Set<string>>(new Set());
+  const scriptsInitialized = useRef(false);
 
   const [gameState, setGameState] = useState<GameState>({
     month: START_MONTH,
@@ -789,6 +824,72 @@ const App: React.FC = () => {
     gameState.balance,
   ]);
 
+  // Monitor script acquisitions for Variety events
+  // Use sessionStorage to track notified scripts within a browser session
+  useEffect(() => {
+    // Wait for loading to finish
+    if (ownedScriptsLoading || !user) return;
+
+    const currentIds: Set<string> = new Set(multiplayerOwnedScripts.map(s => s.script_id));
+
+    // Get previously notified scripts from sessionStorage (persists across component re-renders but not page refresh)
+    const notifiedKey = `notified_scripts_${user.id}`;
+    const notifiedScripts = new Set<string>(
+      JSON.parse(sessionStorage.getItem(notifiedKey) || '[]')
+    );
+
+    if (!scriptsInitialized.current) {
+        // On first load, mark all current scripts as "already notified" so we don't show notifications for existing scripts
+        const allIds = [...currentIds];
+        sessionStorage.setItem(notifiedKey, JSON.stringify(allIds));
+        prevOwnedScriptIds.current = currentIds;
+        scriptsInitialized.current = true;
+        return;
+    }
+
+    // Find truly new IDs (not in previous state AND not already notified this session)
+    const newIds = [...currentIds].filter(id =>
+      !prevOwnedScriptIds.current.has(id) && !notifiedScripts.has(id)
+    );
+
+    if (newIds.length > 0) {
+        newIds.forEach(id => {
+            const script = multiplayerOwnedScripts.find(s => s.script_id === id);
+            if (script) {
+                // Mark as notified immediately
+                notifiedScripts.add(id);
+
+                // Trigger Notification
+                notifications.notifyScriptAcquired(script.title);
+
+                // Trigger Variety Event (BACKGROUND)
+                 const insertEvent = async () => {
+                     try {
+                        const { error } = await supabase.from("game_events").insert({
+                            user_id: user.id,
+                            event_type: "INFO",
+                            title: "SCRIPT ACQUIRED",
+                            description: `The studio has acquired rights to "${script.title}" (${script.genre}). Pre-production can now begin.`,
+                            month: clock?.month || gameState.month,
+                            year: clock?.year || gameState.year,
+                            is_read: false
+                        });
+                        if (error) console.error("Error inserting script event:", error);
+                     } catch (e) {
+                         console.error("Error creating script event:", e);
+                     }
+                 };
+                 insertEvent();
+            }
+        });
+
+        // Save updated notified scripts to sessionStorage
+        sessionStorage.setItem(notifiedKey, JSON.stringify([...notifiedScripts]));
+    }
+
+    prevOwnedScriptIds.current = currentIds;
+  }, [multiplayerOwnedScripts, ownedScriptsLoading, user, clock?.month, clock?.year, notifications]);
+
   // Show loading state while checking auth
   if (loading) {
     return (
@@ -1210,7 +1311,10 @@ const App: React.FC = () => {
             isActive={activeWindowId === "manager"}
             zIndex={windows.manager.zIndex}
             onFocus={() => focusWindow("manager")}
-            initialPos={{ x: 50, y: 30 }}
+            initialPos={{ 
+              x: typeof window !== 'undefined' ? (window.innerWidth - 1152) / 2 : 100, 
+              y: 50 
+            }}
           >
             <div className="flex flex-col h-auto overflow-hidden bg-[#ece9d8]">
               {/* FIXED TABS HEADER */}
@@ -1315,9 +1419,9 @@ const App: React.FC = () => {
         items={[
           `$${(gameState.balance / 1000).toFixed(0)}K`,
           `${gameState.reputation}% Rep`,
-          clock
-            ? `${getMonthName().slice(0, 3)} ${clock.year}`
-            : `Q${Math.ceil(gameState.month / 3)} ${gameState.year}`,
+           clock
+            ? `${getMonthName().slice(0, 3)}`
+            : `Q${Math.ceil(gameState.month / 3)}`,
         ]}
         activeWindows={taskbarItems}
         onToggleWindow={(id) => toggleWindowMinimize(id)}
