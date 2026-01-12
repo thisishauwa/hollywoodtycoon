@@ -1,15 +1,30 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { GameEvent } from "../types";
 
-export interface GameEvent {
+// Database schema format
+interface DbGameEvent {
   id: string;
   user_id: string;
-  type: "GOOD" | "BAD" | "INFO";
-  message: string;
-  read: boolean;
+  event_type: string;
+  title: string;
+  description: string;
+  month: number;
+  year: number;
+  is_read: boolean;
   created_at: string;
 }
+
+// Transform database event to local GameEvent format
+const toLocalEvent = (dbEvent: DbGameEvent): GameEvent => ({
+  id: dbEvent.id,
+  month: dbEvent.month,
+  message: dbEvent.description,
+  // Convert to uppercase to match local event type format (GOOD, BAD, INFO, etc.)
+  type: dbEvent.event_type.toUpperCase() as GameEvent["type"],
+  read: dbEvent.is_read,
+});
 
 export const useEvents = () => {
   const { user } = useAuth();
@@ -27,7 +42,7 @@ export const useEvents = () => {
     const fetchEvents = async () => {
       try {
         const { data, error } = await supabase
-          .from("events")
+          .from("game_events")
           .select("*")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
@@ -38,8 +53,9 @@ export const useEvents = () => {
           return;
         }
 
-        setEvents(data || []);
-        setUnreadCount((data || []).filter((e) => !e.read).length);
+        const localEvents = (data || []).map(toLocalEvent);
+        setEvents(localEvents);
+        setUnreadCount(localEvents.filter((e) => !e.read).length);
       } catch (error) {
         console.error("Error in fetchEvents:", error);
       } finally {
@@ -51,24 +67,28 @@ export const useEvents = () => {
 
     // Subscribe to real-time updates
     const subscription = supabase
-      .channel("events_changes")
+      .channel(`game_events_${user.id}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "events",
+          table: "game_events",
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newEvent = payload.new as GameEvent;
-          setEvents((prev) => [newEvent, ...prev]);
-          if (!newEvent.read) {
+          console.log("[Events] Realtime INSERT detected:", payload);
+          const dbEvent = payload.new as DbGameEvent;
+          const localEvent = toLocalEvent(dbEvent);
+          setEvents((prev) => [localEvent, ...prev]);
+          if (!localEvent.read) {
             setUnreadCount((prev) => prev + 1);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[Events] Subscription status:", status);
+      });
 
     return () => {
       subscription.unsubscribe();
@@ -79,8 +99,8 @@ export const useEvents = () => {
     if (!user) return;
 
     const { error } = await supabase
-      .from("events")
-      .update({ read: true })
+      .from("game_events")
+      .update({ is_read: true })
       .eq("id", eventId)
       .eq("user_id", user.id);
 
@@ -99,10 +119,10 @@ export const useEvents = () => {
     if (!user) return;
 
     const { error } = await supabase
-      .from("events")
-      .update({ read: true })
+      .from("game_events")
+      .update({ is_read: true })
       .eq("user_id", user.id)
-      .eq("read", false);
+      .eq("is_read", false);
 
     if (error) {
       console.error("Error marking all events as read:", error);

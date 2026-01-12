@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { GameState, ProjectStatus, StudioMessage, GameEvent } from "./types";
 import {
-  SEED_ACTORS,
   SEED_SCRIPTS,
   INITIAL_BALANCE,
   START_MONTH,
   START_YEAR,
   RIVAL_STUDIOS,
 } from "./constants";
+import { useActors } from "./hooks/useActors";
 import { calculateEstimatedRelease } from "./services/productionService";
 import {
   WindowFrame,
@@ -36,6 +36,7 @@ import { useOwnedScripts } from "./hooks/useOwnedScripts";
 import { useEvents } from "./hooks/useEvents";
 import { useGlobalClock } from "./hooks/useGlobalClock";
 import { useProjects } from "./hooks/useProjects";
+import { useAwards } from "./hooks/useAwards";
 import { supabase } from "./lib/supabase";
 
 const uuid = () =>
@@ -57,18 +58,25 @@ const App: React.FC = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Multiplayer hooks
-  const { gameState: multiplayerGameState, loading: gameStateLoading } =
+  const { gameState: multiplayerGameState, loading: gameStateLoading, updateBalance } =
     useGameState();
   const { ownedScripts: multiplayerOwnedScripts } = useOwnedScripts();
   const { events: multiplayerEvents } = useEvents();
-  const { studios: realStudios, loading: studiosLoading } = useStudios(
-    user?.id
-  );
   const { clock, getMonthName } = useGlobalClock();
+  const { studios: realStudios, loading: studiosLoading } = useStudios(
+    user?.id,
+    clock?.year
+  );
   const { projects: dbProjects, updateProject, createProject } = useProjects();
+  const { actors: dbActors, loading: actorsLoading } = useActors();
+  const { ceremonies: dbCeremonies, createCeremony, updateCeremony } = useAwards();
 
   // Track last processed month/year to prevent duplicate events
   const lastProcessedTime = useRef<{ month: number; year: number } | null>(
+    null
+  );
+  // Separate ref for production advancement
+  const lastProductionProcessedTime = useRef<{ month: number; year: number } | null>(
     null
   );
 
@@ -77,7 +85,7 @@ const App: React.FC = () => {
     year: START_YEAR,
     balance: INITIAL_BALANCE,
     reputation: profile?.industry_clout || 30,
-    actors: SEED_ACTORS,
+    actors: [], // Will be populated from database
     marketScripts: SEED_SCRIPTS,
     ownedScripts: [],
     projects: [],
@@ -113,8 +121,8 @@ const App: React.FC = () => {
   // Taskbar items - MUST be before conditional returns
   const taskbarItems = useMemo(() => {
     return Object.values(windows)
-      .filter((w) => w.isOpen)
-      .map((w) => ({
+      .filter((w: WindowState) => w.isOpen)
+      .map((w: WindowState) => ({
         id: w.id,
         title:
           w.id === "manager"
@@ -179,6 +187,62 @@ const App: React.FC = () => {
     }
   }, [multiplayerOwnedScripts]);
 
+  // Sync projects from Supabase to gameState
+  useEffect(() => {
+    if (dbProjects.length > 0) {
+      setGameState((prev) => ({
+        ...prev,
+        projects: dbProjects,
+      }));
+    }
+  }, [dbProjects]);
+
+  // Sync actors from Supabase to gameState - only on initial load
+  const actorsInitialized = useRef(false);
+  useEffect(() => {
+    if (dbActors.length > 0 && !actorsInitialized.current) {
+      actorsInitialized.current = true;
+      setGameState((prev) => ({
+        ...prev,
+        actors: dbActors,
+      }));
+    }
+  }, [dbActors]);
+
+  // Sync events from Supabase to gameState
+  useEffect(() => {
+    if (multiplayerEvents.length > 0) {
+      setGameState((prev) => ({
+        ...prev,
+        events: multiplayerEvents,
+      }));
+    }
+  }, [multiplayerEvents]);
+
+  // Sync multiplayerGameState (with merged clock) to local gameState
+  useEffect(() => {
+    if (multiplayerGameState) {
+      setGameState((prev) => ({
+        ...prev,
+        balance: multiplayerGameState.balance,
+        reputation: multiplayerGameState.reputation,
+        month: multiplayerGameState.month, // From global clock via useGameState
+        year: multiplayerGameState.year,   // From global clock via useGameState
+      }));
+    }
+  }, [multiplayerGameState]);
+
+  // Sync global clock to gameState.month/year (DEPRECATED - now using multiplayerGameState)
+  useEffect(() => {
+    if (clock) {
+      setGameState((prev) => ({
+        ...prev,
+        month: clock.month,
+        year: clock.year,
+      }));
+    }
+  }, [clock?.month, clock?.year]);
+
   // Auto-close expired auctions every 30 seconds
   useEffect(() => {
     if (!user) return;
@@ -228,8 +292,8 @@ const App: React.FC = () => {
     // Check immediately on mount
     checkAndAdvanceClock();
 
-    // Then check every 5 minutes
-    const interval = setInterval(checkAndAdvanceClock, 5 * 60 * 1000);
+    // Then check every 30 seconds (to catch 2-minute game months)
+    const interval = setInterval(checkAndAdvanceClock, 30 * 1000);
 
     return () => clearInterval(interval);
   }, [user]);
@@ -247,71 +311,215 @@ const App: React.FC = () => {
       return;
     }
 
-    const processLifecycleEvents = async () => {
+    const processWorldEvents = async () => {
       try {
-        // Import the lifecycle service dynamically
-        const { processActorLifecycle } = await import(
+        // Mark as processed FIRST to prevent infinite re-runs
+        lastProcessedTime.current = {
+          month: clock.month,
+          year: clock.year,
+        };
+
+        // Import services dynamically
+        const { processActorLifecycle, updateActorTiers } = await import(
           "./services/actorLifecycle"
         );
+        const { generateRandomEvent } = await import("./services/geminiService");
+        const { 
+           shouldAnnounceNominations, 
+           generateAwardsCeremony, 
+           shouldHoldCeremony, 
+           determineWinners, 
+           applyAwardEffects 
+        } = await import("./services/awardsService");
 
-        // Process lifecycle events for current actors
-        const { updatedActors, events: lifecycleEvents } =
-          processActorLifecycle(gameState.actors, clock.month);
+        // 1. Actor Lifecycle Events
+        const { updatedActors, events: lifecycleEvents } = processActorLifecycle(
+          gameState.actors,
+          clock.month
+        );
+        let tieredActors = updateActorTiers(updatedActors);
 
-        // Update actors in state
-        setGameState((prev) => ({
-          ...prev,
-          actors: updatedActors,
+        // Map lifecycle event types to game event types for Variety
+        const mapLifecycleToGameEventType = (type: string): string => {
+          const goodEvents = ['marriage', 'comeback', 'award_nomination', 'award_win', 'breakout_role', 'rehab', 'reconciliation'];
+          const badEvents = ['death', 'scandal', 'divorce', 'career_slump', 'personal_issues', 'feud'];
+          if (goodEvents.includes(type)) return 'GOOD';
+          if (badEvents.includes(type)) return 'BAD';
+          return 'GOSSIP';
+        };
+
+        // Convert lifecycle events to game events (filter out silent aging events)
+        let newEvents: any[] = lifecycleEvents
+          .filter(e => e.message && e.message.trim()) // Filter out silent events like aging
+          .map(e => ({
+            id: e.id,
+            month: e.month,
+            type: mapLifecycleToGameEventType(e.type),
+            message: `GOSSIP: ${e.message}`,
+            read: false
+          }));
+        
+        // 2. Random Flavor Gossip
+        if (Math.random() > 0.3) {
+           const headline = await generateRandomEvent(clock.year, gameState.actors);
+           newEvents.push({
+             id: uuid(),
+             month: clock.month,
+             type: "GOSSIP",
+             message: headline,
+             read: false,
+           });
+        }
+
+        // 3. Awards Season
+        let reputationChange = 0;
+
+        // Jan: Nominations
+        if (shouldAnnounceNominations(clock.month)) {
+           const prevYear = clock.year - 1;
+           if (!dbCeremonies.find(c => c.year === prevYear)) {
+               const ceremony = generateAwardsCeremony(gameState, prevYear);
+               if (ceremony) {
+                   // Save to database
+                   await createCeremony(ceremony);
+                   const playerNoms = ceremony.nominations.filter(n => n.studioId === 'player').length;
+                   newEvents.push({
+                       id: uuid(),
+                       month: clock.month,
+                       type: playerNoms > 0 ? 'GOOD' : 'INFO',
+                       message: `AWARDS: ${prevYear} Academy Award nominations announced! ` + 
+                                (playerNoms > 0 ? `You received ${playerNoms} nomination(s).` : `No nominations for your studio.`),
+                       read: false,
+                   });
+               }
+           }
+        }
+
+        // Feb: Ceremony
+        if (shouldHoldCeremony(clock.month)) {
+            const prevYear = clock.year - 1;
+            const ceremony = dbCeremonies.find(c => c.year === prevYear && !c.completed);
+            if (ceremony) {
+                const completed = determineWinners(ceremony);
+                
+                // Update database with winners
+                await updateCeremony(completed.id, { 
+                    completed: true, 
+                    nominations: completed.nominations 
+                });
+                
+                // Apply effects (async now to persist actor changes)
+                const { events: awardEvents, updatedState: effectState } = await applyAwardEffects(gameState, completed, supabase);
+                newEvents.push(...awardEvents);
+                if (effectState.reputation) {
+                    reputationChange += (effectState.reputation - gameState.reputation);
+                }
+            }
+        }
+
+        // 4. Rival Activity (Simulated)
+        if (clock.month % 2 === 0) { // Every other month
+            const activeRivals = gameState.rivals
+                .filter(r => r.name !== gameState.studioName) // Exclude player studio
+                .sort(() => 0.5 - Math.random())
+                .slice(0, 2); // 2 random rivals do something
+            
+            for (const rival of activeRivals) {
+                const actionType = Math.random() > 0.5 ? 'release' : 'scandal';
+                if (actionType === 'release') {
+                    const gross = 15 + Math.floor(Math.random() * 80);
+                    newEvents.push({
+                        id: uuid(),
+                        month: clock.month,
+                        type: 'INFO',
+                        message: `BOX OFFICE: ${rival.name} releases new blockbuster. Analysts estimate $${gross}M opening weekend.`,
+                        read: false,
+                    });
+                } else {
+                     newEvents.push({
+                        id: uuid(),
+                        month: clock.month,
+                        type: 'GOSSIP',
+                        message: `RUMOR: Insiders say ${rival.name} is facing production hell on their latest project.`,
+                        read: false,
+                    });
+                }
+            }
+        }
+
+        // Transform events for DB
+        const dbEvents = newEvents.map(e => ({
+            user_id: user.id,
+            event_type: e.type.toLowerCase() === 'gossip' ? 'gossip' : e.type, 
+            title: e.type,
+            description: e.message,
+            month: clock.month,
+            year: clock.year,
+            is_read: false
         }));
 
-        // Add lifecycle events to game events (for Variety magazine)
-        if (lifecycleEvents.length > 0) {
-          const gameEvents = lifecycleEvents
-            .filter((e) => e.message.trim()) // Only events with messages
-            .map((e) => ({
-              id: e.id,
-              type: "news" as const,
-              title: e.type.replace("_", " ").toUpperCase(),
-              description: e.message,
-              month: e.month,
-              year: clock.year,
-            }));
-
-          // Insert events into Supabase
-          if (gameEvents.length > 0) {
-            const { error } = await supabase.from("game_events").insert(
-              gameEvents.map((e) => ({
-                user_id: user.id,
-                event_type: e.type,
-                title: e.title,
-                description: e.description,
-                month: e.month,
-                year: e.year,
-              }))
-            );
-
-            if (error) {
-              console.error("Error inserting lifecycle events:", error);
-            } else {
-              // Mark this month/year as processed
-              lastProcessedTime.current = {
-                month: clock.month,
-                year: clock.year,
-              };
-            }
-          }
+        // INSERT into Supabase
+        if (dbEvents.length > 0) {
+            await supabase.from("game_events").insert(dbEvents);
         }
+
+        // UPDATE Local State
+        setGameState(prev => ({
+            ...prev,
+            actors: tieredActors,
+            reputation: prev.reputation + reputationChange,
+            events: [...prev.events, ...newEvents.map(e => ({...e, read: false}))]
+        }));
+        
+        // Sync Actors to DB (Critical for persistence)
+         const changedActors = tieredActors.filter(newActor => {
+            const oldActor = gameState.actors.find(a => a.id === newActor.id);
+            if (!oldActor) return false;
+            return (
+                oldActor.reputation !== newActor.reputation || 
+                oldActor.status !== newActor.status ||
+                oldActor.tier !== newActor.tier ||
+                oldActor.skill !== newActor.skill ||
+                oldActor.salary !== newActor.salary ||
+                oldActor.age !== newActor.age ||
+                JSON.stringify(oldActor.gossip) !== JSON.stringify(newActor.gossip)
+            );
+        });
+        
+        if (changedActors.length > 0) {
+            for (const actor of changedActors) {
+                await supabase.from("actors").update({
+                    reputation: actor.reputation,
+                    status: actor.status,
+                    tier: actor.tier,
+                    skill: actor.skill,
+                    salary: actor.salary,
+                    age: actor.age,
+                    gossip: actor.gossip
+                }).eq("id", actor.id);
+            }
+        }
+
       } catch (err) {
-        console.error("Error processing lifecycle events:", err);
+        console.error("Error processing world events:", err);
       }
     };
 
-    processLifecycleEvents();
+    processWorldEvents();
   }, [clock?.month, clock?.year, user]); // Trigger when month/year changes
 
   // Process production advancement when global clock changes
   useEffect(() => {
     if (!clock || !user) return;
+
+    // Skip if this month/year was already processed for production
+    if (
+      lastProductionProcessedTime.current &&
+      lastProductionProcessedTime.current.month === clock.month &&
+      lastProductionProcessedTime.current.year === clock.year
+    ) {
+      return;
+    }
 
     const processProductionAdvancement = async () => {
       try {
@@ -325,7 +533,21 @@ const App: React.FC = () => {
           (p) => p.status !== "Released"
         );
 
-        if (activeProjects.length === 0) return;
+        // Only return early (and don't set guard) if there are truly no projects
+        // This allows the effect to retry when projects load
+        if (activeProjects.length === 0) {
+          console.log("[Production] No active projects to process");
+          return;
+        }
+
+        // Mark as processed AFTER confirming we have projects to process
+        // This prevents the race condition where empty projects list blocks future runs
+        lastProductionProcessedTime.current = {
+          month: clock.month,
+          year: clock.year,
+        };
+
+        console.log(`[Production] Processing ${activeProjects.length} active project(s) for ${clock.month}/${clock.year}`);
 
         const updatedProjects = [...gameState.projects];
         const newEvents: any[] = [];
@@ -346,11 +568,11 @@ const App: React.FC = () => {
 
           updatedProjects[i] = movie;
 
-          // Save project updates to database
+          // Save project updates to database (round progress values for integer columns)
           await updateProject(movie.id, {
             status: movie.status,
-            progress: movie.progress,
-            phaseProgress: movie.phaseProgress,
+            progress: Math.round(movie.progress),
+            phaseProgress: Math.round(movie.phaseProgress),
             quality: movie.quality,
             currentBudgetSpent: movie.currentBudgetSpent,
             estimatedReleaseMonth: movie.estimatedReleaseMonth,
@@ -430,6 +652,28 @@ const App: React.FC = () => {
                 releaseResult.revenueResult.totalRevenue / 1000000
               ).toFixed(1)}M (${releaseResult.revenueResult.performance})`
             );
+
+            // Release actors from production back to "On Hiatus" (if contracted) or "Available"
+            // Only sync actors with valid UUID IDs (local seed actors have simple IDs like "a1")
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            for (const actorId of movie.cast) {
+              if (!uuidRegex.test(actorId)) continue; // Skip non-UUID actors
+
+              // Check if actor has active contract with this user
+              const { data: contractData } = await supabase
+                .from("actor_contracts")
+                .select("id")
+                .eq("actor_id", actorId)
+                .eq("studio_id", user.id)
+                .eq("status", "active")
+                .single();
+
+              const newStatus = contractData ? "On Hiatus" : "Available";
+              await supabase
+                .from("actors")
+                .update({ status: newStatus })
+                .eq("id", actorId);
+            }
           }
 
           // Notify on phase changes
@@ -437,6 +681,7 @@ const App: React.FC = () => {
             newEvents.push({
               id: `phase-${movie.id}-${clock.month}`,
               month: clock.month,
+              year: clock.year,
               type: "INFO",
               message: `"${movie.title}" has entered ${movie.status} phase.`,
               read: false,
@@ -444,10 +689,9 @@ const App: React.FC = () => {
           }
         }
 
-        // Update state with all changes
+        // Update state with non-project changes (projects are updated via DB sync)
         setGameState((prev) => ({
           ...prev,
-          projects: updatedProjects,
           balance: prev.balance + balanceChange,
           reputation: Math.max(
             0,
@@ -795,12 +1039,52 @@ const App: React.FC = () => {
       estimatedReleaseYear: estimatedRelease.year,
     };
 
-    // Save project to database FIRST
-    const { error } = await createProject(newProject);
-    if (error) {
+    // Save project to database FIRST and get the returned project with DB-generated ID
+    const { error, project: savedProject } = await createProject(newProject);
+    if (error || !savedProject) {
       console.error("Error creating project:", error);
       alert("Failed to create project. Please try again.");
       return;
+    }
+
+    // Calculate new balance and persist to database
+    const newBalance = gameState.balance - (budget + marketing);
+    await updateBalance(newBalance);
+
+    // Save events to database
+    const greenlightEvent = {
+      user_id: user.id,
+      event_type: "GOOD",
+      title: "Project Greenlit",
+      description: `GREENLIT: "${script.title}" production started.`,
+      month: gameState.month,
+      year: gameState.year,
+      is_read: false,
+    };
+
+    await supabase.from("game_events").insert(greenlightEvent);
+
+    if (marketing > 500000) {
+      await supabase.from("game_events").insert({
+        user_id: user.id,
+        event_type: "AD",
+        title: "Marketing Campaign",
+        description: `MARKETING: ${script.title}`,
+        month: gameState.month,
+        year: gameState.year,
+        is_read: false,
+      });
+    }
+
+    // Set actors to "In Production" status in database (only for UUID actors)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const actorId of actorIds) {
+      if (uuidRegex.test(actorId)) {
+        await supabase
+          .from("actors")
+          .update({ status: "In Production" })
+          .eq("id", actorId);
+      }
     }
 
     setGameState((prev) => {
@@ -825,8 +1109,8 @@ const App: React.FC = () => {
       }
       return {
         ...prev,
-        balance: prev.balance - (budget + marketing),
-        projects: [...prev.projects, newProject],
+        balance: newBalance,
+        projects: [...prev.projects, savedProject], // Use savedProject with DB ID
         actors: prev.actors.map((a) =>
           actorIds.includes(a.id) ? { ...a, status: "In Production" } : a
         ),
@@ -881,7 +1165,7 @@ const App: React.FC = () => {
         {windows.manager.isOpen && !windows.manager.isMinimized && (
           <WindowFrame
             title="StarVision Studio Manager 2003"
-            className="w-full max-w-6xl h-full max-h-[85vh]"
+            className="w-full max-w-6xl h-fit max-h-[90vh]"
             onClose={() => closeWindow("manager")}
             onMinimize={() => toggleWindowMinimize("manager")}
             isActive={activeWindowId === "manager"}
@@ -889,7 +1173,7 @@ const App: React.FC = () => {
             onFocus={() => focusWindow("manager")}
             initialPos={{ x: 50, y: 30 }}
           >
-            <div className="flex flex-col h-full overflow-hidden bg-[#ece9d8]">
+            <div className="flex flex-col h-auto overflow-hidden bg-[#ece9d8]">
               {/* FIXED TABS HEADER */}
               <div className="flex px-1 pt-1 items-end shrink-0 border-b border-[#808080] bg-[#dcd8c0]">
                 <RetroTab
@@ -920,7 +1204,7 @@ const App: React.FC = () => {
               </div>
 
               {/* FLEXIBLE CONTENT BODY */}
-              <div className="flex-1 p-0.5 flex flex-col overflow-hidden bg-white">
+              <div className="h-auto p-0.5 flex flex-col overflow-hidden bg-white">
                 {activeTab === "dashboard" && (
                   <div className="flex justify-end p-2 bg-[#ece9d8] border-b border-[#808080] shrink-0">
                     <RetroButton
@@ -933,7 +1217,7 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex-1 overflow-hidden h-full">
+                <div className="h-auto overflow-hidden">
                   {activeTab === "dashboard" && <Dashboard state={gameState} />}
                   {activeTab === "scripts" && <ScriptMarketMultiplayer />}
                   {activeTab === "actors" && <ActorDb />}
@@ -949,7 +1233,7 @@ const App: React.FC = () => {
 
         {windows.news.isOpen && !windows.news.isMinimized && (
           <MagazineWindow
-            events={gameState.events}
+            events={multiplayerEvents}
             state={gameState}
             onClose={() => closeWindow("news")}
             onMinimize={() => toggleWindowMinimize("news")}

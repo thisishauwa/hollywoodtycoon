@@ -162,17 +162,18 @@ export const determineWinners = (ceremony: AwardsCeremony): AwardsCeremony => {
   };
 };
 
-// Apply award effects to game state (reputation boost, actor skill boost)
-export const applyAwardEffects = (
+// Apply award effects to game state (reputation boost, actor skill boost, salary increase)
+export const applyAwardEffects = async (
   state: GameState,
-  ceremony: AwardsCeremony
-): { updatedState: GameState; events: GameEvent[] } => {
+  ceremony: AwardsCeremony,
+  supabase: any // Supabase client for persistence
+): Promise<{ updatedState: GameState; events: GameEvent[] }> => {
   const events: GameEvent[] = [];
   let newState = { ...state };
 
   const winners = ceremony.nominations.filter(n => n.isWinner);
 
-  winners.forEach(winner => {
+  for (const winner of winners) {
     // Studio reputation boost
     if (winner.studioId === 'player') {
       const reputationBoost = winner.category === AwardCategory.BestPicture ? 15 : 5;
@@ -187,25 +188,51 @@ export const applyAwardEffects = (
       });
     }
 
-    // Actor skill boost for acting awards
+    // Actor skill & salary boost for acting awards
     if (winner.actorId && (winner.category === AwardCategory.BestActor || winner.category === AwardCategory.BestActress)) {
       const actorIdx = newState.actors.findIndex(a => a.id === winner.actorId);
       if (actorIdx !== -1) {
         const skillBoost = 5 + Math.floor(Math.random() * 5);
+        const salaryMultiplier = 1.3 + (Math.random() * 0.2); // 30-50% increase
+        
         newState.actors = [...newState.actors];
-        newState.actors[actorIdx] = {
+        const updatedActor = {
           ...newState.actors[actorIdx],
           skill: Math.min(100, newState.actors[actorIdx].skill + skillBoost),
           reputation: Math.min(100, newState.actors[actorIdx].reputation + 10),
+          salary: Math.floor(newState.actors[actorIdx].salary * salaryMultiplier),
         };
+        newState.actors[actorIdx] = updatedActor;
 
         // Add gossip about the win
-        const gossip = newState.actors[actorIdx].gossip || [];
+        const gossip = updatedActor.gossip || [];
         gossip.push(`Won ${winner.category} for "${winner.movieTitle}" at the ${ceremony.year} Academy Awards`);
-        newState.actors[actorIdx].gossip = gossip.slice(-5); // Keep last 5
+        updatedActor.gossip = gossip.slice(-5); // Keep last 5
+
+        // Persist to database
+        if (supabase) {
+          await supabase
+            .from('actors')
+            .update({
+              skill: updatedActor.skill,
+              reputation: updatedActor.reputation,
+              salary: updatedActor.salary,
+              gossip: updatedActor.gossip,
+            })
+            .eq('id', winner.actorId);
+        }
+
+        const salaryIncreasePct = Math.round((salaryMultiplier - 1) * 100);
+        events.push({
+          id: uuid(),
+          month: newState.month,
+          type: 'GOOD',
+          message: `GOSSIP: ${winner.actorName}'s asking price surges ${salaryIncreasePct}% following ${winner.category} win!`,
+          read: false,
+        });
       }
     }
-  });
+  }
 
   // Add ceremony summary event
   const playerWins = winners.filter(w => w.studioId === 'player').length;

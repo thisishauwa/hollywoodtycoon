@@ -124,23 +124,25 @@ export const useGlobalClock = () => {
   };
 
   // Get month name
-  const getMonthName = (): string => {
-    if (!clock) return "--";
+  const getMonthName = (monthIndex?: number): string => {
+    const targetMonth = monthIndex !== undefined ? monthIndex : (clock?.month || 1);
     const months = [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"
     ];
-    return months[clock.month - 1] || "--";
+    return months[targetMonth - 1] || "--";
   };
 
   // Check if it's award season (Feb)
-  const isAwardSeason = (): boolean => {
-    return clock?.month === 2;
+  const isAwardSeason = (monthIndex?: number): boolean => {
+    const targetMonth = monthIndex !== undefined ? monthIndex : (clock?.month || 0);
+    return targetMonth === 2;
   };
 
   // Check if it's nomination season (Jan)
-  const isNominationSeason = (): boolean => {
-    return clock?.month === 1;
+  const isNominationSeason = (monthIndex?: number): boolean => {
+    const targetMonth = monthIndex !== undefined ? monthIndex : (clock?.month || 0);
+    return targetMonth === 1;
   };
 
   return {

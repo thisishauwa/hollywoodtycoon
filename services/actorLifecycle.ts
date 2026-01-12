@@ -223,10 +223,12 @@ function generateEvent(
       const partner = eligiblePartners[Math.floor(Math.random() * eligiblePartners.length)];
       return {
         ...baseEvent,
-        message: `Wedding bells! ${actor.name} and ${partner.name} tie the knot in a lavish ceremony.`,
-        gossip: `Just married ${partner.name}! The ceremony was the talk of the town. Insiders say they're "blissfully happy" but Hollywood marriages... we'll see.`,
+        message: `Wedding bells! ${actor.name} and ${partner.name} tie the knot.`,
+        gossip: `Just married ${partner.name}! The ceremony was lavish. Insiders say being settled has made them "focused and happier than ever."`,
         impact: {
-          reputation: 5,
+          reputation: 10,
+          skill: 2, // Stability helps focus
+          salary: actor.salary * 0.15, // Price goes up due to higher profile/stability
           relationships: { [partner.id]: 60 }
         },
       };
@@ -243,11 +245,12 @@ function generateEvent(
 
       return {
         ...baseEvent,
-        message: `Splitsville! ${actor.name} and ${partner.name} confirm divorce after irreconcilable differences.`,
-        gossip: `The split from ${partner.name} is getting UGLY. Lawyers are involved, and friends are being forced to pick sides. One source called it "a bloodbath."`,
+        message: `Splitsville! ${actor.name} and ${partner.name} confirm divorce.`,
+        gossip: `The split from ${partner.name} is messy. Tabloids are feasting. "They are devastated," says a source.`,
         impact: {
-          reputation: -8,
-          skill: -8, // Emotional turmoil affects performance
+          reputation: -12,
+          skill: -5, // Emotional turmoil affects performance
+          salary: -actor.salary * 0.10, // Market value dips due to instability
           relationships: { [partnerId]: -80 }
         },
       };
@@ -258,26 +261,30 @@ function generateEvent(
       return {
         ...baseEvent,
         message: `Scandal rocks Hollywood: ${actor.name} ${scandal}.`,
-        gossip: `The scandal won't die down. Publicists are in crisis mode, and studio execs are reconsidering upcoming projects. Career damage assessment: ongoing.`,
-        impact: { reputation: -15, skill: -10, salary: -actor.salary * 0.15 }, // Scandal tanks everything
+        gossip: `PR Nightmare! Sponsors are dropping ${actor.name} left and right. "It's a career-ender," whispers one exec.`,
+        impact: { 
+            reputation: -25, 
+            skill: -2, 
+            salary: -actor.salary * 0.30 // Major price crash
+        }, 
       };
     }
 
     case "comeback":
       return {
         ...baseEvent,
-        message: `${actor.name} makes stunning comeback with critically acclaimed indie role.`,
-        gossip: `The comeback is REAL. Critics are calling it a "career resurrection." Suddenly everyone who doubted them is pretending they always believed.`,
-        impact: { reputation: 20, skill: 5, salary: actor.salary * 0.20 }, // Comeback = demand goes up
+        message: `${actor.name} makes stunning comeback with critically acclaimed role.`,
+        gossip: `The comeback is REAL. "They reinvented themselves," raves a critic. Price tag just doubled.`,
+        impact: { reputation: 25, skill: 5, salary: actor.salary * 0.40 }, // Huge bump
       };
 
     case "award_nomination": {
       const award = AWARD_NAMES[Math.floor(Math.random() * AWARD_NAMES.length)];
       return {
         ...baseEvent,
-        message: `${actor.name} earns ${award} nomination for outstanding performance.`,
-        gossip: `${award} nominated! The campaign trail begins. Sources say they're "cautiously optimistic" but privately "already practicing their speech."`,
-        impact: { reputation: 8, skill: 3, salary: actor.salary * 0.10 }, // Nomination = price bump
+        message: `${actor.name} earns ${award} nomination.`,
+        gossip: `Nominated for a ${award}! The prestige bump is immediate. Studios are calling.`,
+        impact: { reputation: 10, skill: 2, salary: actor.salary * 0.20 }, // 20% bump
       };
     }
 
@@ -285,9 +292,9 @@ function generateEvent(
       const award = AWARD_NAMES[Math.floor(Math.random() * AWARD_NAMES.length)];
       return {
         ...baseEvent,
-        message: `${actor.name} wins ${award}! Emotional acceptance speech goes viral.`,
-        gossip: `${award} WINNER! The after-party was legendary. Quote fees have tripled overnight. Their agent hasn't slept in three days.`,
-        impact: { reputation: 15, skill: 5, salary: actor.salary * 0.30 }, // Award win = major price jump
+        message: `${actor.name} wins ${award}!`,
+        gossip: `${award} WINNER! "They are now Hollywood Royalty," says an agent. Asking price has skyrocketed.`,
+        impact: { reputation: 20, skill: 5, salary: actor.salary * 0.60 }, // 60% bump!
       };
     }
 

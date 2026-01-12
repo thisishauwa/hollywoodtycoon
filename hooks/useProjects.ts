@@ -183,6 +183,10 @@ export const useProjects = () => {
         supabaseUpdates.release_month = updates.releaseMonth;
       if (updates.releaseYear !== undefined)
         supabaseUpdates.release_year = updates.releaseYear;
+      if (updates.estimatedReleaseMonth !== undefined)
+        supabaseUpdates.estimated_release_month = updates.estimatedReleaseMonth;
+      if (updates.estimatedReleaseYear !== undefined)
+        supabaseUpdates.estimated_release_year = updates.estimatedReleaseYear;
       if (updates.revenue !== undefined)
         supabaseUpdates.revenue = updates.revenue;
       if (updates.reviews) supabaseUpdates.reviews = updates.reviews;

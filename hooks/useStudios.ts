@@ -7,9 +7,10 @@ export interface Studio {
   yearlyRevenue: number;
   color: string;
   industry_clout: number;
+  reputation: number;
 }
 
-export const useStudios = (currentUserId?: string) => {
+export const useStudios = (currentUserId?: string, currentYear?: number) => {
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,17 +24,37 @@ export const useStudios = (currentUserId?: string) => {
           return;
         }
 
-        // Fetch profiles (industry_clout will be added after migration)
-        const { data, error } = await supabase
+        // Fetch profiles
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .select("id, username")
+          .select("id, username, industry_clout")
           .neq("id", currentUserId); // Exclude current user
 
-        if (error) {
-          console.error("Error fetching studios:", error);
+        if (profileError) {
+          console.error("Error fetching studios:", profileError);
           setStudios([]);
           return;
         }
+
+        // Get the current year from global clock if not provided
+        const yearToUse = currentYear || new Date().getFullYear();
+
+        // Fetch all released projects for this year to calculate yearly revenue
+        const { data: projectsData, error: projectsError } = await supabase
+          .from("projects")
+          .select("studio_id, revenue")
+          .eq("status", "Released")
+          .eq("release_year", yearToUse);
+
+        if (projectsError) {
+          console.error("Error fetching projects for revenue:", projectsError);
+        }
+
+        // Calculate yearly revenue per studio
+        const revenueByStudio: Record<string, number> = {};
+        (projectsData || []).forEach((p: any) => {
+          revenueByStudio[p.studio_id] = (revenueByStudio[p.studio_id] || 0) + (p.revenue || 0);
+        });
 
         // Convert profiles to studios format
         const studioColors = [
@@ -51,13 +72,14 @@ export const useStudios = (currentUserId?: string) => {
           "#6c5ce7",
         ];
 
-        const mappedStudios: Studio[] = (data || []).map(
+        const mappedStudios: Studio[] = (profileData || []).map(
           (profile: any, index: number) => ({
             id: profile.id,
             name: profile.username,
-            yearlyRevenue: (profile.industry_clout || 30) * 1000000, // Convert clout to revenue for display
+            yearlyRevenue: revenueByStudio[profile.id] || 0, // Real revenue from released projects
             color: studioColors[index % studioColors.length],
-            industry_clout: profile.industry_clout || 30, // Default to 30 if column doesn't exist
+            industry_clout: profile.industry_clout || 30,
+            reputation: profile.industry_clout || 30,
           })
         );
 
@@ -91,7 +113,7 @@ export const useStudios = (currentUserId?: string) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [currentUserId]);
+  }, [currentUserId, currentYear]);
 
   return { studios, loading };
 };

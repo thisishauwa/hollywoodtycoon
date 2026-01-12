@@ -219,6 +219,15 @@ export const useContracts = () => {
         return { error: updateError.message, contract: null };
       }
 
+      // Insert news event
+      await supabase.from("game_events").insert({
+        id: crypto.randomUUID(),
+        month: currentMonth,
+        type: "INDUSTRY",
+        message: `CASTING: ${actorData.name} has signed an exclusive contract!`,
+        read: false
+      });
+
       await fetchContracts();
       return { error: null, contract: toContract(contractData) };
     },

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { useGlobalClock } from "./useGlobalClock";
 
 interface GameState {
   balance: number;
@@ -12,6 +13,7 @@ interface GameState {
 
 export const useGameState = () => {
   const { user } = useAuth();
+  const { clock } = useGlobalClock();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -123,8 +125,15 @@ export const useGameState = () => {
     }
   };
 
+  // Merge local state with global clock for unified timing
+  const mergedGameState = gameState && clock ? {
+    ...gameState,
+    month: clock.month,
+    year: clock.year
+  } : gameState;
+
   return {
-    gameState,
+    gameState: mergedGameState,
     loading,
     updateBalance,
     updateReputation,

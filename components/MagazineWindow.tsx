@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { GameEvent, GameState, AwardsCeremony } from '../types';
+import { GameEvent, GameState } from '../types';
 import { WindowFrame } from './RetroUI';
+import { useAuth } from '../contexts/AuthContext';
+import { useGlobalClock } from '../hooks/useGlobalClock';
 
 interface Props {
   events: GameEvent[];
@@ -15,34 +17,22 @@ interface Props {
 type NewsCategory = 'all' | 'boxoffice' | 'gossip' | 'awards' | 'production' | 'business';
 
 const CATEGORY_CONFIG: Record<NewsCategory, { label: string; color: string; filter: (e: GameEvent) => boolean }> = {
-  all: { label: 'Front Page', color: '#999999', filter: () => true },
+  all: { label: 'Top Stories', color: '#003366', filter: () => true },
   boxoffice: { label: 'Box Office', color: '#0066cc', filter: e => e.message.includes('BO:') || e.message.includes('RELEASE:') || e.message.includes('Revenue') },
-  gossip: { label: 'Gossip', color: '#cc0066', filter: e => e.type === 'GOSSIP' || e.message.includes('GOSSIP:') },
-  awards: { label: 'Awards', color: '#d4af37', filter: e => e.message.includes('AWARDS:') || e.message.includes('AWARD') },
-  production: { label: 'Production', color: '#339933', filter: e => e.message.includes('PRODUCTION') || e.message.includes('GREENLIT') || e.message.includes('DELAY') },
-  business: { label: 'Business', color: '#663399', filter: e => e.message.includes('CONTRACT') || e.message.includes('WIRE') || e.message.includes('AUCTION') },
-};
-
-const getEventIcon = (event: GameEvent): string => {
-  if (event.message.includes('AWARDS:')) return '🏆';
-  if (event.message.includes('RELEASE:')) return '🎬';
-  if (event.message.includes('BO:')) return '📊';
-  if (event.message.includes('GOSSIP:')) return '💬';
-  if (event.message.includes('PRODUCTION')) return '🎥';
-  if (event.message.includes('CONTRACT')) return '📝';
-  if (event.message.includes('GREENLIT')) return '✅';
-  if (event.type === 'GOOD') return '⭐';
-  if (event.type === 'BAD') return '⚠️';
-  return '📰';
+  gossip: { label: 'The Slap', color: '#cc0066', filter: e => e.type === 'GOSSIP' || e.message.includes('GOSSIP:') },
+  awards: { label: 'Awards Season', color: '#b8860b', filter: e => e.message.includes('AWARDS:') || e.message.includes('AWARD') },
+  production: { label: 'Production', color: '#228b22', filter: e => e.message.includes('PRODUCTION') || e.message.includes('GREENLIT') || e.message.includes('DELAY') },
+  business: { label: 'Industry Biz', color: '#4b0082', filter: e => e.message.includes('CONTRACT') || e.message.includes('WIRE') || e.message.includes('AUCTION') },
 };
 
 const formatDate = (month: number, year: number): string => {
-  const months = ['January', 'February', 'March', 'April', 'May', 'June',
-                  'July', 'August', 'September', 'October', 'November', 'December'];
-  return `${months[month - 1]} ${year}`;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[month - 1].toUpperCase()} ${year}`;
 };
 
 export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMinimize, isActive, zIndex, onFocus }) => {
+  const { user } = useAuth();
+  const { clock } = useGlobalClock();
   const [activeCategory, setActiveCategory] = useState<NewsCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,353 +42,219 @@ export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMini
       e.type === 'GOSSIP' || e.type === 'BAD' || e.type === 'GOOD' || e.type === 'AD' || e.type === 'INFO'
     );
 
-    // Apply category filter
     if (activeCategory !== 'all') {
       filtered = filtered.filter(CATEGORY_CONFIG[activeCategory].filter);
     }
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(e => e.message.toLowerCase().includes(query));
     }
 
-    return filtered.reverse();
+    // Sort chronologically: most recent month first
+    filtered = filtered.sort((a, b) => {
+      // First by month (higher = more recent)
+      if (a.month !== b.month) {
+        return (b.month || 0) - (a.month || 0);
+      }
+      // Then by ID (lexicographic, newer IDs are typically higher)
+      return b.id.localeCompare(a.id);
+    });
+
+    return filtered;
   }, [events, activeCategory, searchQuery]);
 
   const mainStory = filteredEvents[0];
-  const secondaryStories = filteredEvents.slice(1, 4);
-  const otherHeadlines = filteredEvents.slice(4, 12);
-
-  // Get upcoming/recent awards
-  const upcomingAwards = state.awardsCeremonies?.find(c => !c.completed);
-  const recentAwards = state.awardsCeremonies?.find(c => c.completed && c.year === state.year - 1);
-
-  // Generate dynamic "In Depth" content based on game state
-  const getInDepthContent = () => {
-    if (upcomingAwards) {
-      const playerNoms = upcomingAwards.nominations.filter(n => n.studioId === 'player').length;
-      return {
-        title: `${upcomingAwards.year} Awards Preview`,
-        subtitle: playerNoms > 0 ? `${state.studioName}: ${playerNoms} nominations` : 'Who will take home gold?',
-      };
-    }
-    if (state.projects.filter(p => p.status !== 'Released' && p.studioId === 'player').length > 0) {
-      return {
-        title: 'Production Pipeline',
-        subtitle: `${state.studioName} has ${state.projects.filter(p => p.status !== 'Released' && p.studioId === 'player').length} films in production`,
-      };
-    }
-    return {
-      title: 'Industry Watch',
-      subtitle: 'What\'s next for Hollywood?',
-    };
-  };
-
-  const inDepth = getInDepthContent();
+  const otherHeadlines = filteredEvents.slice(1);
 
   return (
     <WindowFrame
-      title="Variety News Online - Hollywood's Entertainment Leader"
+      title="Variety.com - The Business of Entertainment"
       onClose={onClose}
       onMinimize={onMinimize}
       isActive={isActive}
       zIndex={zIndex}
       onFocus={onFocus}
-      className="w-full max-w-5xl h-[90vh]"
-      initialPos={{ x: 80, y: 50 }}
+      className="w-full max-w-5xl h-[85vh]"
+      initialPos={{ x: 60, y: 40 }}
     >
-      <div className="bg-white h-full flex flex-col overflow-hidden font-sans select-text" style={{ fontFamily: 'Tahoma, Arial, sans-serif' }}>
-
-        {/* Top Service Bar */}
-        <div className="bg-white px-2 py-1 border-b border-gray-100 flex justify-between items-center text-[10px] text-gray-600 font-bold uppercase">
-          <div className="flex gap-4">
-            <span className="text-black hover:underline cursor-pointer">Variety Homepage</span>
-            <span className="hover:underline cursor-pointer opacity-80">World Service</span>
-            <span className="hover:underline cursor-pointer opacity-80">Education</span>
-          </div>
-          <div className="flex gap-3 normal-case font-normal text-blue-800">
-            <span className="text-gray-500">{formatDate(state.month, state.year)}</span>
-            <span className="text-gray-300">|</span>
-            <span className="hover:underline cursor-pointer">help</span>
-          </div>
-        </div>
-
-        {/* Variety Brand Header */}
-        <div className="bg-[#cc0000] flex items-stretch shrink-0 overflow-hidden border-b-2 border-[#990000]">
-          <div className="bg-white px-4 py-2 flex items-center">
-             <div className="flex gap-1.5">
-               {['V','A','R','I','E','T','Y'].map((l, i) => (
-                 <span key={i} className="bg-[#cc0000] text-white font-black text-2xl w-8 h-8 flex items-center justify-center leading-none">
-                   {l}
-                 </span>
-               ))}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marquee 20s linear infinite;
+          padding-left: 100%;
+        }
+      `}</style>
+      <div className="bg-white h-full flex flex-col font-sans text-sm overflow-hidden select-text border border-gray-400">
+        
+        {/* HEADER: Y2K WEB STYLE */}
+        <div className="bg-[#f0f0f0] border-b border-gray-400 p-2">
+           <div className="flex justify-between items-end mb-2">
+             <div className="flex flex-col">
+               <h1 className="text-4xl font-serif italic font-black tracking-tighter text-[#cc0000] leading-none" style={{ fontFamily: 'Times New Roman, serif' }}>
+                 VARIETY<span className="text-gray-500 text-lg font-normal not-italic tracking-normal">.com</span>
+               </h1>
+               <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest ml-1">The Global Leader in Entertainment News</span>
              </div>
-          </div>
-          <div className="flex-1 flex items-center px-4 bg-[#cc0000]">
-            <h1 className="text-white text-3xl font-black italic tracking-tighter">NEWS</h1>
-          </div>
-          <div className="w-48 bg-[#cc0000] relative overflow-hidden hidden md:block">
-             <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20"></div>
-             <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full border-[12px] border-white/10"></div>
-          </div>
+             <div className="text-right">
+                <div className="text-[10px] font-bold text-gray-600 mb-1">
+                  EDITION: U.S. | GAME TIME: {formatDate(clock?.month || state.month, clock?.year || state.year)}
+                </div>
+                <div className="bg-white border border-gray-400 p-0.5 flex justify-between items-center w-40">
+                  <input 
+                    type="text" 
+                    placeholder="Search Site" 
+                    className="w-full text-[10px] outline-none px-1"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <button className="bg-[#cc0000] text-white text-[9px] font-bold px-1 ml-1 h-full shrink-0">GO</button>
+                </div>
+             </div>
+           </div>
+           
+           {/* NAV BAR */}
+           <div className="flex gap-4 text-[10px] font-bold uppercase border-t border-gray-300 pt-1">
+              {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveCategory(key as NewsCategory)}
+                  className={`hover:text-[#cc0000] hover:underline ${activeCategory === key ? 'text-[#cc0000] underline' : 'text-[#003366]'}`}
+                >
+                  {config.label}
+                </button>
+              ))}
+              <span className="text-gray-400">|</span>
+              <a href="#" className="text-[#003366] hover:underline">Subscribe</a>
+              <a href="#" className="text-[#003366] hover:underline">Archives</a>
+              <a href="#" className="text-[#003366] hover:underline">Box Office Charts</a>
+           </div>
         </div>
 
-        {/* Breaking Bar */}
-        <div className="bg-white border-b border-gray-300 px-3 py-1.5 flex flex-col md:flex-row md:items-center justify-between gap-1 text-[11px]">
-          <div className="flex items-center gap-3">
-            <span
-              className="px-2 py-0.5 font-bold uppercase text-white"
-              style={{ backgroundColor: CATEGORY_CONFIG[activeCategory].color }}
-            >
-              {CATEGORY_CONFIG[activeCategory].label}
-            </span>
-            <span className="text-gray-500 font-bold">{formatDate(state.month, state.year)}</span>
-          </div>
-          <div className="flex items-center gap-1 overflow-hidden">
-            <span className="text-[#cc0000] font-black uppercase tracking-tight shrink-0">Latest:</span>
-            <span className="text-black font-bold truncate">{mainStory?.message.toUpperCase() || 'NO NEWS AVAILABLE'}</span>
-            <span className="w-1.5 h-3 bg-black/80 animate-pulse shrink-0"></span>
-          </div>
+        {/* MARQUEE */}
+        <div className="bg-[#003366] text-white py-1 border-b border-black overflow-hidden relative whitespace-nowrap">
+           <div className="animate-marquee inline-block text-[10px] font-bold">
+             <span className="text-yellow-400 mx-2">+++ BREAKING NEWS +++</span>
+             {mainStory ? mainStory.message.toUpperCase() : "NO BREAKING NEWS"}
+             <span className="mx-4 text-gray-400">|</span>
+             {otherHeadlines[0] ? otherHeadlines[0].message.toUpperCase() : "..."}
+             <span className="mx-4 text-gray-400">|</span>
+             {(state.awardsCeremonies[0] && !state.awardsCeremonies[0].completed) ? `AWARDS SEASON: ${state.awardsCeremonies[0].name.toUpperCase()} COMING SOON` : "INDUSTRY UPDATE"}
+           </div>
         </div>
 
-        {/* 3-Column Content */}
-        <div className="flex-1 overflow-y-auto flex bg-white">
-          {/* Sidebar Nav - Categories */}
-          <div className="w-32 md:w-40 shrink-0 border-r border-gray-100 p-2 flex flex-col text-[12px] text-[#003366] font-bold space-y-0.5">
-            {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
-              <div
-                key={key}
-                onClick={() => setActiveCategory(key as NewsCategory)}
-                className={`text-right hover:underline cursor-pointer pr-2 py-1 ${
-                  activeCategory === key
-                    ? 'bg-gray-100 text-black border-l-4'
-                    : ''
-                }`}
-                style={{ borderColor: activeCategory === key ? config.color : 'transparent' }}
-              >
-                {config.label}
-              </div>
-            ))}
-
-            <div className="mt-4 border-t border-gray-100 pt-3 pr-2 text-right">
-               <div className="text-[10px] font-black text-black">
-                 <span className="bg-black text-white px-1 mr-1">V</span> SPORT &gt;&gt;
+        {/* MAIN BODY - 2 COL LAYOUT */}
+        <div className="flex-1 overflow-hidden flex bg-white">
+          
+          {/* MAIN CONTENT COLUMN */}
+          <div className="flex-1 overflow-y-auto p-4 border-r border-gray-200 scrollbar-thin">
+            {filteredEvents.length === 0 ? (
+               <div className="text-center p-8 text-gray-400 font-bold italic">
+                 No stories found in this section.
                </div>
-            </div>
-
-            {/* Event count */}
-            <div className="mt-auto pt-4 border-t border-gray-100 text-[9px] text-gray-400 text-right pr-2">
-              {filteredEvents.length} stories
-            </div>
-          </div>
-
-          {/* Main Feed */}
-          <div className="flex-1 p-4 bg-white border-r border-gray-100 overflow-y-auto">
-             {filteredEvents.length === 0 ? (
-               <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                 <span className="text-4xl mb-2">📰</span>
-                 <p className="text-sm font-bold">No stories in this category</p>
-                 <p className="text-xs mt-1">Check back later for updates</p>
-               </div>
-             ) : (
-               <>
+            ) : (
+              <>
+                 {/* LEAD STORY */}
                  {mainStory && (
-                   <div className="mb-8">
-                      <h2 className="text-2xl font-bold leading-tight text-[#003366] mb-4 hover:underline cursor-pointer">
-                        {getEventIcon(mainStory)} {mainStory.message.split(':').slice(1).join(':')?.trim() || mainStory.message}
+                   <div className="mb-6 border-b border-dotted border-gray-400 pb-4">
+                      <h2 className="text-2xl font-bold text-[#003366] mb-2 leading-tight hover:underline cursor-pointer font-serif">
+                        {mainStory.message.split(':')[1] || mainStory.message}
                       </h2>
-                      <div className="flex flex-col md:flex-row gap-4 mb-4">
-                        <div
-                          className="w-full md:w-56 h-32 border-2 border-gray-400 bg-gray-100 shadow-sm flex items-center justify-center"
-                          style={{
-                            background: mainStory.type === 'GOOD' ? 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)' :
-                                       mainStory.type === 'BAD' ? 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)' :
-                                       'linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%)'
-                          }}
-                        >
-                          <span className="text-6xl opacity-50">{getEventIcon(mainStory)}</span>
-                        </div>
-                        <div className="flex-1 text-[13px] leading-[1.3] text-gray-800">
-                           <p className="mb-2">{mainStory.message}</p>
-                           <p className="text-[11px] text-gray-500 italic">
-                             Reported in {formatDate(mainStory.month || state.month, state.year)}
-                           </p>
-                        </div>
-                      </div>
-                      {secondaryStories.length > 0 && (
-                        <div className="pl-4 border-l-2 border-gray-100 space-y-2">
-                           <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Also:</div>
-                           {secondaryStories.map(s => (
-                             <div key={s.id} className="text-[12px] font-bold text-[#003366] hover:underline cursor-pointer flex items-start gap-2">
-                                <span className="text-[#cc0000] mt-1 text-[8px]">▶</span>
-                                <span>{getEventIcon(s)}</span>
-                                {s.message}
-                             </div>
-                           ))}
-                        </div>
-                      )}
-                   </div>
-                 )}
-
-                 {otherHeadlines.length > 0 && (
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-                      {otherHeadlines.map(h => (
-                         <div key={h.id} className="space-y-2 p-2 hover:bg-gray-50 rounded">
-                            <div className="flex gap-3">
-                               <div
-                                 className="w-16 h-16 border border-gray-300 shrink-0 shadow-sm flex items-center justify-center"
-                                 style={{
-                                   background: h.type === 'GOOD' ? 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)' :
-                                              h.type === 'BAD' ? 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)' :
-                                              'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)'
-                                 }}
-                               >
-                                 <span className="text-2xl opacity-70">{getEventIcon(h)}</span>
-                               </div>
-                               <div className="flex-1">
-                                 <h3 className="text-[12px] font-bold leading-tight text-[#003366] hover:underline cursor-pointer mb-1">
-                                   {h.message.replace(/^(GOSSIP|BO|PRODUCTION|CONTRACT|AWARDS|RELEASE|GREENLIT|DELAY|WIRE|AUCTION): ?/i, '')}
-                                 </h3>
-                                 <p className="text-[9px] text-gray-400">
-                                   {h.type === 'GOOD' && '✓ Positive news'}
-                                   {h.type === 'BAD' && '⚠ Alert'}
-                                   {h.type === 'GOSSIP' && '💬 Industry buzz'}
-                                   {h.type === 'INFO' && '📋 Update'}
-                                 </p>
-                               </div>
+                      <div className="flex gap-3">
+                         <div className="flex-1">
+                            <div className="text-[10px] font-bold text-[#cc0000] mb-1 uppercase">
+                              {mainStory.type === 'GOOD' ? 'ANALYSIS: HIT' : mainStory.type === 'BAD' ? 'ANALYSIS: FLOP' : 'INDUSTRY REPORT'}
+                            </div>
+                            <p className="text-[12px] leading-snug text-gray-800">
+                              <span className="font-bold uppercase text-gray-500 text-[9px] mr-1">HOLLYWOOD, CA &mdash;</span>
+                              {mainStory.message} The industry is reacting to the news with mixed emotions as analysts predict long-term impacts on the studio system.
+                            </p>
+                            <div className="mt-2 text-[10px] text-[#003366] font-bold hover:underline cursor-pointer">
+                              Read Full Story &gt;&gt;
                             </div>
                          </div>
-                      ))}
+                      </div>
                    </div>
                  )}
-               </>
-             )}
+
+                 {/* HEADLINES LIST */}
+                 <div className="grid grid-cols-1 gap-3">
+                   {otherHeadlines.map(event => (
+                     <div key={event.id} className="flex gap-2 items-start py-2 border-b border-gray-100 last:border-0 hover:bg-[#f9f9f9]">
+                        <div className="mt-1 w-1.5 h-1.5 bg-[#cc0000] shrink-0"></div>
+                        <div>
+                          <h3 className="text-[12px] font-bold text-[#003366] leading-tight hover:underline cursor-pointer">
+                            {event.message}
+                          </h3>
+                          <div className="text-[9px] text-gray-400 mt-0.5">
+                            {formatDate(event.month, state.year)} | {event.type}
+                          </div>
+                        </div>
+                     </div>
+                   ))}
+                 </div>
+              </>
+            )}
           </div>
 
-          {/* Side Features */}
-          <div className="w-56 md:w-64 shrink-0 bg-[#f6f6f6] p-2 space-y-4 overflow-y-auto">
-             <div className="bg-white border border-gray-300 p-2 space-y-1 shadow-sm">
-                <div className="text-[11px] font-bold">Search Variety News</div>
-                <div className="flex gap-1">
-                   <input
-                     type="text"
-                     value={searchQuery}
-                     onChange={(e) => setSearchQuery(e.target.value)}
-                     placeholder="Search stories..."
-                     className="flex-1 border border-gray-400 h-5 px-1 text-xs focus:ring-1 focus:ring-blue-300"
-                   />
-                   <button
-                     onClick={() => setSearchQuery('')}
-                     className="bg-[#cc0000] text-white px-2 h-5 font-bold text-[10px] uppercase border border-black shadow-sm"
-                   >
-                     {searchQuery ? 'X' : 'GO'}
-                   </button>
+          {/* RIGHT SIDEBAR - ADVERTISEMENTS & CHARTS */}
+          <div className="w-48 bg-[#f4f4f4] border-l border-gray-300 p-2 overflow-y-auto shrink-0 hidden md:block">
+             {/* LOGIN BOX STYLE */}
+             <div className="bg-white border text-[10px] p-2 mb-4 border-gray-400">
+               <div className="font-bold text-[#cc0000] mb-1">SUBSCRIBER LOGIN</div>
+               <div className="mb-1">Welcome, <span className="font-bold">{state.studioName}</span></div>
+               <div className="text-gray-500">Tier: {state.reputation > 80 ? 'Legendary' : state.reputation > 60 ? 'Major' : 'Indie'} Access</div>
+               <div className="mt-1 text-[#003366] underline cursor-pointer">Manage Account</div>
+             </div>
+
+             {/* ADVERTISEMENT */}
+             <div className="border border-gray-400 bg-white p-1 mb-4">
+                <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-3 text-center">
+                  <div className="text-[10px] uppercase font-bold text-blue-200">Ad</div>
+                  <div className="font-bold text-sm my-1">FILM FESTIVAL 2003</div>
+                  <div className="text-[9px]">Submit your entries now!</div>
+                  <button className="bg-yellow-400 text-black text-[9px] font-bold px-2 py-0.5 mt-2 rounded-sm border-b-2 border-yellow-600">CLICK HERE</button>
                 </div>
              </div>
 
-             {/* Awards Section */}
-             {(upcomingAwards || recentAwards) && (
-               <div className="space-y-0.5 shadow-sm">
-                  <div className="bg-[#d4af37] px-2 py-0.5 text-[10px] font-black flex items-center gap-1 border-b border-gray-300 text-white">
-                     <span className="text-xs">🏆</span> AWARDS CENTRAL
-                  </div>
-                  <div className="bg-white border border-gray-200 p-2">
-                     {upcomingAwards && !upcomingAwards.completed && (
-                       <div className="mb-2 pb-2 border-b border-gray-100">
-                         <div className="text-[11px] font-bold text-[#003366] leading-tight">
-                           Nominations Announced
-                         </div>
-                         <div className="text-[9px] text-gray-500">
-                           {upcomingAwards.nominations.filter(n => n.studioId === 'player').length} nominations for {state.studioName}
-                         </div>
-                         <div className="text-[9px] text-[#d4af37] font-bold mt-1">
-                           Ceremony in February
-                         </div>
-                       </div>
-                     )}
-                     {recentAwards && (
-                       <div>
-                         <div className="text-[11px] font-bold text-[#003366] leading-tight">
-                           {recentAwards.year} Results
-                         </div>
-                         <div className="text-[9px] text-gray-500">
-                           {recentAwards.nominations.filter(n => n.studioId === 'player' && n.isWinner).length} wins for {state.studioName}
-                         </div>
-                       </div>
-                     )}
-                  </div>
+             {/* MINI CHART */}
+             <div className="bg-white border border-gray-400 p-2">
+               <div className="font-bold text-[10px] text-[#003366] border-b border-gray-200 mb-1 pb-1">
+                 WEEKLY BOX OFFICE
                </div>
-             )}
-
-             {/* Studio Standing */}
-             <div className="space-y-0.5 shadow-sm">
-                <div className="bg-[#0066cc] px-2 py-0.5 text-[10px] font-black flex items-center gap-1 border-b border-gray-300 text-white">
-                   <span className="text-xs">📊</span> STUDIO STANDING
-                </div>
-                <div className="bg-white border border-gray-200 p-2">
-                   <div className="text-[11px] font-bold text-[#003366] leading-tight mb-1">
-                     {state.studioName}
-                   </div>
-                   <div className="grid grid-cols-2 gap-1 text-[9px]">
-                     <div>
-                       <span className="text-gray-500">Reputation:</span>
-                       <span className="font-bold ml-1">{state.reputation}%</span>
-                     </div>
-                     <div>
-                       <span className="text-gray-500">Balance:</span>
-                       <span className="font-bold ml-1 text-green-700">${(state.balance / 1000000).toFixed(1)}M</span>
-                     </div>
-                     <div>
-                       <span className="text-gray-500">In Prod:</span>
-                       <span className="font-bold ml-1">{state.projects.filter(p => p.status !== 'Released' && p.studioId === 'player').length}</span>
-                     </div>
-                     <div>
-                       <span className="text-gray-500">Released:</span>
-                       <span className="font-bold ml-1">{state.projects.filter(p => p.status === 'Released' && p.studioId === 'player').length}</span>
-                     </div>
-                   </div>
-                </div>
+               {state.projects
+                  .filter(p => p.status === 'Released')
+                  .sort((a, b) => b.revenue - a.revenue)
+                  .slice(0, 3)
+                  .map((p, i) => (
+                  <div key={p.id} className="mb-1.5 last:mb-0">
+                    <div className="flex justify-between text-[9px]">
+                      <span className="font-bold text-gray-700 truncate w-24">{i+1}. {p.title}</span>
+                    </div>
+                    <div className="text-[8px] text-green-700 font-mono">
+                      ${(p.revenue / 1000000).toFixed(1)}M
+                    </div>
+                  </div>
+               ))}
+               <div className="text-[9px] text-[#cc0000] font-bold text-right mt-1 cursor-pointer hover:underline">
+                 View Full Chart
+               </div>
              </div>
 
-             {/* In Depth */}
-             <div className="space-y-0.5 shadow-sm">
-                <div className="bg-[#cccc99] px-2 py-0.5 text-[10px] font-black flex items-center gap-1 border-b border-gray-300">
-                   <span className="text-xs">📁</span> IN DEPTH
-                </div>
-                <div className="bg-white border border-gray-200 p-2 flex gap-2">
-                   <div className="flex-1 space-y-1">
-                      <div className="text-[11px] font-bold text-[#003366] hover:underline cursor-pointer leading-tight">
-                        {inDepth.title}
-                      </div>
-                      <div className="text-[10px] text-gray-500 leading-tight">{inDepth.subtitle}</div>
-                   </div>
-                </div>
-             </div>
-
-             {/* Quick Stats */}
-             <div className="space-y-0.5 shadow-sm">
-                <div className="bg-[#339933] px-2 py-0.5 text-[10px] font-black flex items-center gap-1 border-b border-gray-300 text-white">
-                   <span className="text-xs">📈</span> MARKET PULSE
-                </div>
-                <div className="bg-white border border-gray-200 p-2 text-[9px] space-y-1">
-                   <div className="flex justify-between">
-                     <span className="text-gray-500">Scripts on Market:</span>
-                     <span className="font-bold">{state.marketScripts.length}</span>
-                   </div>
-                   <div className="flex justify-between">
-                     <span className="text-gray-500">Available Talent:</span>
-                     <span className="font-bold">{state.actors.filter(a => a.status === 'Available').length}</span>
-                   </div>
-                   <div className="flex justify-between">
-                     <span className="text-gray-500">Rival Studios:</span>
-                     <span className="font-bold">{state.rivals.length}</span>
-                   </div>
-                </div>
-             </div>
           </div>
+
         </div>
 
+        {/* FOOTER */}
+        <div className="bg-[#e0e0e0] border-t border-gray-400 p-2 text-center text-[9px] text-gray-500">
+           Copyright &copy; 2003 Variety Media, LLC. All Rights Reserved. <br/>
+           <a href="#" className="underline">Terms of Use</a> | <a href="#" className="underline">Privacy Policy</a> | <a href="#" className="underline">Contact Us</a>
+        </div>
       </div>
     </WindowFrame>
   );

@@ -118,9 +118,9 @@ const PERSONALITIES: RivalStudio["personality"][] = [
 export const RIVAL_STUDIOS: RivalStudio[] = STUDIO_NAMES.map((name, i) => ({
   id: `r${i}`,
   name,
-  reputation: 30 + Math.floor(Math.random() * 60),
+  reputation: 40 + Math.floor(Math.random() * 50), // Min 40 ensures at least "Rising" tier
   balance: 5000000 + Math.floor(Math.random() * 95000000),
-  yearlyRevenue: 0,
+  yearlyRevenue: 10000000 + Math.floor(Math.random() * 100000000), // Simulate some history
   color: `hsl(${i * 12}, 70%, 40%)`,
   personality: PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)],
   relationship: 0,
@@ -823,7 +823,7 @@ export const SEED_ACTORS: Actor[] = [
 
 export const SEED_SCRIPTS: Script[] = [
   {
-    id: "s1",
+    id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
     title: "Memory Lane",
     genre: Genre.Romance,
     quality: 92,
@@ -838,7 +838,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Melancholic",
   },
   {
-    id: "s2",
+    id: "109156be-c4fb-41ea-b1b4-efe1671c5836",
     title: "The Double Cross",
     genre: Genre.Thriller,
     quality: 95,
@@ -853,7 +853,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Serious",
   },
   {
-    id: "s3",
+    id: "6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b",
     title: "Road to Starlight",
     genre: Genre.Comedy,
     quality: 88,
@@ -868,7 +868,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Lighthearted",
   },
   {
-    id: "s4",
+    id: "c56a4180-65aa-42ec-a945-5fd21dec0538",
     title: "Desert Fortune",
     genre: Genre.Thriller,
     quality: 96,
@@ -883,7 +883,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Serious",
   },
   {
-    id: "s5",
+    id: "0f47d446-44b4-4340-97F1-3b5674c2e6f4",
     title: "Last Night Out",
     genre: Genre.Comedy,
     quality: 82,
@@ -898,7 +898,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Lighthearted",
   },
   {
-    id: "s6",
+    id: "4e95ce32-756e-4433-87f5-34351b858485",
     title: "Black Gold",
     genre: Genre.Drama,
     quality: 98,
@@ -913,7 +913,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Serious",
   },
   {
-    id: "s7",
+    id: "d8c1e847-1934-4b52-b8ec-f2c9747124f1",
     title: "Nine Months Later",
     genre: Genre.Comedy,
     quality: 85,
@@ -928,7 +928,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Lighthearted",
   },
   {
-    id: "s8",
+    id: "a5027581-995f-4161-a8cc-0a149d873c3d",
     title: "The Illusionists",
     genre: Genre.Thriller,
     quality: 90,
@@ -943,7 +943,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Serious",
   },
   {
-    id: "s9",
+    id: "3e4666bf-d515-46cc-b70c-c6b7582b5358",
     title: "The Faun's Maze",
     genre: Genre.Fantasy,
     quality: 94,
@@ -958,7 +958,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Dark",
   },
   {
-    id: "s10",
+    id: "71329c29-8732-4d51-9f79-c54d7f57c503",
     title: "Million Dollar Question",
     genre: Genre.Drama,
     quality: 91,
@@ -973,7 +973,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Uplifting",
   },
   {
-    id: "s11",
+    id: "96b65392-4148-4395-9d33-9118c772e0d3",
     title: "The Ghost Protocol",
     genre: Genre.Action,
     quality: 87,
@@ -988,7 +988,7 @@ export const SEED_SCRIPTS: Script[] = [
     tone: "Serious",
   },
   {
-    id: "s12",
+    id: "b4507119-21b9-4a0b-8d65-4dffc3619582",
     title: "Unexpected Delivery",
     genre: Genre.Romance,
     quality: 78,

@@ -49,7 +49,7 @@ const StatusIcon: React.FC<{ type: string }> = ({ type }) => {
 
 export const Dashboard: React.FC<Props> = ({ state }) => {
   // Get real data from Supabase
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { gameState: supabaseGameState } = useGameState();
   const { ownedScripts } = useOwnedScripts();
   const { clock, formatTimeRemaining, getMonthName, isAwardSeason } = useGlobalClock();
@@ -98,348 +98,353 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
       <div className="flex-1 overflow-y-auto p-2">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           {/* Main Controls & Stats */}
-          <div className="lg:col-span-4 flex flex-col gap-3">
-            <div className="shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
-              <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
-                Studio Console
+          <div className="lg:col-span-4 h-full">
+            <div className="h-full bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
+              <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0 flex justify-between items-center">
+                <span>Studio Console</span>
+                <span className="opacity-80 font-normal normal-case">v2.0</span>
               </div>
-              <div className="flex-1 flex flex-col gap-3 p-3 bg-[#f4f4f4] overflow-hidden">
-                {/* Studio Header with Tier Badge */}
-                <div className="flex items-center gap-3 border-b border-gray-300 pb-3">
-                  <div className="w-12 h-12 bevel-outset rounded-sm shrink-0 shadow-sm overflow-hidden">
-                    <img
-                      src={profileIcon}
-                      alt="Studio"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h2 className="font-bold text-sm text-[#003399] leading-tight truncate uppercase tracking-tighter">
-                      {studioName}
-                    </h2>
-                    <div
-                      className="inline-block mt-1 px-2 py-0.5 text-[9px] font-bold uppercase rounded-sm text-white"
-                      style={{ backgroundColor: studioTierInfo.color }}
-                    >
-                      {studioTierInfo.tier}
+              
+              <div className="flex-1 flex flex-col bg-[#f4f4f4] overflow-y-auto">
+                {/* STUDIO IDENTITY SECTION */}
+                <div className="p-3 bg-gradient-to-b from-white to-[#f4f4f4] border-b border-[#d4d4d4]">
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-14 bevel-outset bg-gray-200 rounded-sm shrink-0 shadow-sm overflow-hidden relative group">
+                      <img
+                        src={profileIcon}
+                        alt="Studio"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-tr from-black/20 to-transparent pointer-events-none"></div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-bold text-sm text-[#003399] leading-tight truncate uppercase tracking-tight">
+                        {studioName}
+                      </h2>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div
+                          className="inline-block px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-sm text-white shadow-sm"
+                          style={{ backgroundColor: studioTierInfo.color }}
+                        >
+                          {studioTierInfo.tier}
+                        </div>
+                        <span className="text-[9px] text-gray-500 font-bold">
+                          Lv.{Math.floor(currentReputation / 10) + 1}
+                        </span>
+                      </div>
+                      
+                      {/* Condensed Stats */}
+                      <div className="mt-2 flex items-center gap-3">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] text-gray-500 uppercase font-bold">Balance</span>
+                          <span className="text-xs font-bold text-green-700 font-mono leading-none">
+                            ${(currentBalance / 1000000).toFixed(2)}M
+                          </span>
+                        </div>
+                        <div className="w-[1px] h-6 bg-gray-300"></div>
+                        <div className="flex flex-col">
+                          <span className="text-[8px] text-gray-500 uppercase font-bold">Reputation</span>
+                          <span className="text-xs font-bold text-[#003399] font-mono leading-none">
+                            {currentReputation}%
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Tier Progress */}
-                <div className="bg-white border border-[#808080] p-2 shadow-inner">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[9px] text-[#808080] font-bold uppercase">
-                      Reputation
-                    </span>
-                    <span className="font-bold text-xs" style={{ color: studioTierInfo.color }}>
-                      {currentReputation}%
-                    </span>
-                  </div>
-                  <div className="h-3 bg-gray-200 border border-gray-400 rounded-sm overflow-hidden">
-                    <div
-                      className="h-full transition-all duration-500"
-                      style={{
-                        width: `${progressToNextTier}%`,
-                        backgroundColor: studioTierInfo.color
-                      }}
-                    />
-                  </div>
-                  {nextTier && (
-                    <div className="flex justify-between mt-1 text-[8px] text-gray-500">
-                      <span>{studioTierInfo.tier}</span>
-                      <span>{nextTier.minReputation}% for {nextTier.tier}</span>
+                  {/* Tier Progress Bar */}
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[8px] text-gray-500 mb-0.5 uppercase tracking-wider">
+                      <span>Progress to {nextTier ? nextTier.tier : 'Max Tier'}</span>
+                      <span>{Math.round(progressToNextTier)}%</span>
                     </div>
-                  )}
-                </div>
-
-                {/* Tier Benefits */}
-                <div className="bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-300 p-2 rounded-sm">
-                  <div className="text-[8px] font-bold uppercase text-gray-500 mb-1">Tier Benefits</div>
-                  <div className="text-[9px] text-gray-700 leading-relaxed">
-                    {studioTierInfo.description}
-                  </div>
-                  {studioTierInfo.salaryDiscount > 0 && (
-                    <div className="mt-1 text-[9px] font-bold text-green-600">
-                      {studioTierInfo.salaryDiscount}% salary discount active
-                    </div>
-                  )}
-                </div>
-
-                {/* Balance & Stats */}
-                <div className="space-y-2">
-                  <div className="bg-[#ffffe1] border border-[#808080] p-2 shadow-inner flex justify-between items-center">
-                    <span className="text-[9px] text-[#808080] font-bold uppercase">
-                      Balance
-                    </span>
-                    <span className="font-bold text-sm text-green-700 font-mono">
-                      ${currentBalance.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white border border-[#808080] p-2 shadow-inner flex flex-col items-center">
-                      <span className="text-[9px] text-[#808080] font-bold uppercase">
-                        Scripts
-                      </span>
-                      <span className="font-bold text-sm text-purple-700">
-                        {scriptsOwned}
-                      </span>
-                    </div>
-                    <div className="bg-white border border-[#808080] p-2 shadow-inner flex flex-col items-center">
-                      <span className="text-[9px] text-[#808080] font-bold uppercase">
-                        Movies
-                      </span>
-                      <span className="font-bold text-sm text-orange-600">
-                        {moviesReleased}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Global Game Clock */}
-                <div className="bg-gradient-to-r from-[#0058ee] to-[#003399] text-white p-2 rounded-sm shadow-md">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] font-bold uppercase tracking-wide">
-                      Game Time
-                    </div>
-                    <div className="text-sm font-bold">
-                      {clock ? `${getMonthName()} ${clock.year}` : 'Loading...'}
-                    </div>
-                  </div>
-                  <div className="bg-white/10 rounded-sm p-2">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="opacity-80">Next Month In:</span>
-                      <span className="font-bold font-mono">{formatTimeRemaining()}</span>
-                    </div>
-                    <div className="mt-1 h-1 bg-white/20 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-gray-200 border border-gray-400 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-yellow-400 transition-all duration-1000"
+                        className="h-full transition-all duration-500 rounded-full"
                         style={{
-                          width: clock
-                            ? `${100 - ((clock.advanceIntervalHours - (Date.now() - clock.lastAdvancedAt.getTime()) / 3600000) / clock.advanceIntervalHours * 100)}%`
-                            : '0%'
+                          width: `${progressToNextTier}%`,
+                          backgroundColor: studioTierInfo.color
                         }}
                       />
                     </div>
                   </div>
-                  {isAwardSeason() && (
-                    <div className="mt-2 bg-yellow-500 text-black text-[9px] font-bold py-1 px-2 rounded-sm text-center animate-pulse">
-                      AWARD SEASON - Academy Awards This Month!
-                    </div>
-                  )}
-                  <div className="text-[8px] text-center mt-1 opacity-70">
-                    All players share the same game time
+                </div>
+
+                {/* ACTIVE PRODUCTIONS SECTION */}
+                <div className="border-b border-[#d4d4d4] bg-white">
+                  <div className="px-3 py-1.5 bg-[#e8e8e8] border-b border-[#d4d4d4] flex justify-between items-center">
+                    <h3 className="text-[9px] font-bold text-gray-600 uppercase tracking-wide">
+                      Live Productions
+                    </h3>
+                    <span className="px-1.5 py-0.5 bg-white border border-gray-300 rounded-full text-[8px] font-bold text-gray-500">
+                      {state.projects.filter(p => p.status !== "Released" && p.studioId === user?.id).length} Active
+                    </span>
+                  </div>
+                  
+                  <div className="p-2 space-y-2 min-h-[100px]">
+                    {state.projects.filter(
+                      (p) => p.status !== "Released" && p.studioId === user?.id
+                    ).length === 0 ? (
+                      <div className="py-6 flex flex-col items-center justify-center text-gray-400 text-[10px] text-center border-2 border-dashed border-gray-100 rounded-md">
+                        <p className="font-bold mb-0.5">Studio Dark</p>
+                        <p className="text-[9px]">No productions currently running</p>
+                      </div>
+                    ) : (
+                      state.projects
+                        .filter(
+                          (p) => p.status !== "Released" && p.studioId === user?.id
+                        )
+                        .map((p) => {
+                          const phaseColors: Record<string, string> = {
+                            "Pre-Production": "#8b5cf6",
+                            "Filming": "#ef4444",
+                            "Post-Production": "#f59e0b",
+                            "Marketing": "#3b82f6",
+                          };
+                          return (
+                            <div
+                              key={p.id}
+                              className="group relative bg-white border border-gray-200 rounded-sm p-2 shadow-sm hover:border-[#0058ee] hover:shadow-md transition-all"
+                            >
+                              <div className="flex justify-between items-start mb-1.5">
+                                <h4 className="text-[10px] font-bold text-gray-800 uppercase truncate pr-2">
+                                  {p.title}
+                                </h4>
+                                <span
+                                  className="text-[8px] font-bold text-white px-1.5 py-0.5 rounded-sm shrink-0 uppercase tracking-tight"
+                                  style={{ backgroundColor: phaseColors[p.status] || "#808080" }}
+                                >
+                                  {p.status}
+                                </span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 text-[9px] text-gray-500 font-mono mb-1">
+                                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                                  <div 
+                                    className="h-full bg-blue-500 transition-all duration-300"
+                                    style={{ width: `${p.progress}%` }}
+                                  />
+                                </div>
+                                <span className="text-[8px]">{p.progress}%</span>
+                              </div>
+                              
+                              {(p.productionEvents?.length || 0) > 0 && (
+                                <div className="text-[8px] text-gray-400 italic truncate pl-0.5 border-l-2 border-gray-200">
+                                  {p.productionEvents?.[p.productionEvents.length - 1]?.title}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+
+                {/* SCRIPT LIBRARY SECTION */}
+                <div className="flex-1 bg-white min-h-[140px]">
+                  <div className="px-3 py-1.5 bg-[#e8e8e8] border-b border-[#d4d4d4] flex justify-between items-center">
+                    <h3 className="text-[9px] font-bold text-gray-600 uppercase tracking-wide">
+                      Script Vault
+                    </h3>
+                     <span className="text-[9px] font-bold text-gray-500">
+                      {scriptsOwned} Owned
+                    </span>
+                  </div>
+                  
+                  <div className="p-0">
+                    {ownedScripts.length === 0 ? (
+                      <div className="py-8 flex flex-col items-center justify-center text-gray-400 text-[10px] text-center opacity-60">
+                        <img src="/images/Full Recycle Bin.ico" alt="" className="w-8 h-8 mb-2 opacity-50 grayscale" />
+                        <p>Vault Empty</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {ownedScripts.map((script) => (
+                          <div
+                            key={script.id}
+                            className="px-3 py-2 flex justify-between items-center hover:bg-blue-50 transition-colors group cursor-default"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <div className="text-[10px] font-bold text-gray-800 truncate group-hover:text-[#0058ee]">
+                                {script.title}
+                              </div>
+                              <div className="text-[9px] text-gray-500 flex gap-2">
+                                <span>{script.genre}</span>
+                                <span className="text-gray-300">•</span>
+                                <span className="capitalize">{script.quality || 'Standard'} Quality</span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                               <div className="text-[9px] font-bold text-green-700 font-mono">
+                                ${script.purchase_price?.toLocaleString() ?? '0'}
+                               </div>
+                               <div className="text-[8px] text-gray-400 uppercase">Valuation</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Recently Won Auctions */}
-            <div className="h-32 shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
-              <div className="bg-[#38d438] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
-                Your Script Library ({scriptsOwned})
-              </div>
-              <div className="flex-1 flex flex-col bg-white overflow-y-auto p-2 space-y-1">
-                {ownedScripts.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-[10px] text-center opacity-40 py-2">
-                    <p className="italic">NO SCRIPTS YET</p>
-                    <p className="text-[8px]">Win auctions to acquire scripts!</p>
-                  </div>
-                ) : (
-                  ownedScripts.slice(0, 3).map((script) => (
-                    <div
-                      key={script.id}
-                      className="p-1.5 border border-green-200 bg-green-50 flex justify-between items-center"
-                    >
-                      <div className="truncate">
-                        <span className="text-[10px] font-bold text-[#003399]">
-                          {script.title}
-                        </span>
-                        <span className="text-[8px] text-gray-500 ml-2">
-                          {script.genre}
-                        </span>
-                      </div>
-                      <span className="text-[8px] font-bold text-green-700">
-                        ${script.purchase_price?.toLocaleString() || "N/A"}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="shrink-0 bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
-              <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
-                Live Productions
-              </div>
-              <div className="flex-1 flex flex-col bg-white overflow-y-auto p-2 space-y-2 max-h-48">
-                {state.projects.filter(
-                  (p) => p.status !== "Released" && p.studioId === "player"
-                ).length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-[10px] text-center opacity-40 py-4">
-                    <p className="italic">NO ACTIVE PRODUCTIONS</p>
-                    <p className="text-[8px]">Greenlight a project to start</p>
-                  </div>
-                ) : (
-                  state.projects
-                    .filter(
-                      (p) => p.status !== "Released" && p.studioId === "player"
-                    )
-                    .map((p) => {
-                      const phaseColors: Record<string, string> = {
-                        "Pre-Production": "#8b5cf6",
-                        "Filming": "#ef4444",
-                        "Post-Production": "#f59e0b",
-                        "Marketing": "#3b82f6",
-                      };
-                      const phaseIcons: Record<string, string> = {
-                        "Pre-Production": "📋",
-                        "Filming": "🎬",
-                        "Post-Production": "🎞️",
-                        "Marketing": "📺",
-                      };
-                      return (
-                        <div
-                          key={p.id}
-                          className="p-2 border bg-gradient-to-r from-white to-gray-50 space-y-1.5 shadow-sm shrink-0"
-                          style={{ borderColor: phaseColors[p.status] || "#d4d4d4" }}
-                        >
-                          <div className="flex justify-between items-center">
-                            <h4 className="text-[10px] font-bold text-[#003399] uppercase truncate flex-1">
-                              {p.title}
-                            </h4>
-                            <span
-                              className="text-[8px] font-bold text-white px-1.5 py-0.5 rounded-sm flex items-center gap-1"
-                              style={{ backgroundColor: phaseColors[p.status] || "#808080" }}
-                            >
-                              {phaseIcons[p.status]} {p.status}
-                            </span>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[8px] text-gray-500">
-                              <span>Overall: {p.progress}%</span>
-                              <span>Phase: {p.phaseProgress || 0}%</span>
-                            </div>
-                            <RetroProgressBar progress={p.progress} />
-                          </div>
-                          {(p.productionEvents?.length || 0) > 0 && (
-                            <div className="text-[8px] text-gray-500 italic truncate">
-                              Latest: {p.productionEvents?.[p.productionEvents.length - 1]?.title}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Leaderboard Table */}
-          <div className="lg:col-span-4 h-[540px]">
+{/* Leaderboard Table */}
+          <div className="lg:col-span-4 h-full">
             <div className="h-full bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
-              <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
-                Global Power Rankings
+              <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0 flex justify-between items-center">
+                <span>Box Office Power Rankings</span>
+                <span className="opacity-80 font-normal normal-case">{clock ? clock.year : state.year} Season</span>
               </div>
               <div className="bg-white flex-1 overflow-y-auto">
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-gray-100 text-gray-600 text-[9px] font-bold sticky top-0 z-10 border-b">
+                  <thead className="bg-[#f0f0f0] text-gray-500 text-[8px] font-bold uppercase sticky top-0 z-10 border-b border-gray-300">
                     <tr>
-                      <th className="px-2 py-2 border-r">#</th>
-                      <th className="px-2 py-2 border-r">STUDIO</th>
-                      <th className="px-2 py-2 text-right">GROSS</th>
+                      <th className="px-3 py-2 border-r border-gray-200 w-10 text-center">Rank</th>
+                      <th className="px-3 py-2 border-r border-gray-200">Studio</th>
+                      <th className="px-3 py-2 text-right">Yearly Gross</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {allStudios.map((s, idx) => (
-                      <tr
-                        key={s.id}
-                        className={`text-[10px] ${
-                          s.id === "player"
-                            ? "bg-[#ffffcc]"
-                            : "hover:bg-blue-50 cursor-default"
-                        }`}
-                      >
-                        <td className="px-2 py-2 font-bold text-gray-400 w-8 border-r">
-                          {idx + 1}
-                        </td>
-                        <td className="px-2 py-2 font-bold text-gray-800 uppercase truncate border-r">
-                          {s.id === "player" && (
-                            <span className="mr-1 text-blue-600 font-bold">
-                              ★
-                            </span>
-                          )}
-                          {s.name}
-                        </td>
-                        <td className="px-2 py-2 text-right font-mono text-blue-600">
-                          ${(s.revenue / 1000000).toFixed(1)}M
-                        </td>
-                      </tr>
-                    ))}
+                    {(() => {
+                      // Calculate Player's Real Yearly Gross
+                      const playerYearlyGross = state.projects
+                        .filter(p => p.status === "Released" && p.releaseYear === (clock ? clock.year : state.year))
+                        .reduce((sum, p) => sum + p.revenue, 0);
+
+                      const rankedStudios = [
+                        {
+                          name: studioName,
+                          revenue: playerYearlyGross,
+                          id: "player",
+                          color: "#0058ee",
+                          tier: studioTierInfo.tier,
+                        },
+                        ...state.rivals.map((r) => ({
+                          name: r.name,
+                          revenue: r.yearlyRevenue,
+                          id: r.id,
+                          color: r.color,
+                          tier: getStudioTier(r.reputation).tier,
+                        })),
+                      ].sort((a, b) => b.revenue - a.revenue);
+
+                      return rankedStudios.map((s, idx) => (
+                        <tr
+                          key={s.id}
+                          className={`group transition-colors cursor-default ${
+                            s.id === "player"
+                              ? "bg-blue-50 hover:bg-blue-100"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <td className="px-3 py-2.5 text-center">
+                            <div className={`
+                              w-5 h-5 mx-auto flex items-center justify-center text-[10px] font-bold rounded-full
+                              ${idx === 0 ? "bg-yellow-100 text-yellow-700" : 
+                                idx === 1 ? "bg-gray-100 text-gray-600" :
+                                idx === 2 ? "bg-orange-50 text-orange-700" : "text-gray-400"}
+                            `}>
+                              {idx + 1}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 border-r border-gray-50 group-hover:border-gray-200">
+                            <div className="flex flex-col">
+                              <span className={`text-[11px] font-bold truncate ${s.id === "player" ? "text-[#0058ee]" : "text-gray-800"}`}>
+                                {s.name} {s.id === "player" && "(You)"}
+                              </span>
+                              <span className="text-[8px] text-gray-400 uppercase tracking-wide">
+                                {s.tier}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                             <div className="flex flex-col items-end">
+                                <span className={`font-mono font-bold text-[11px] ${s.revenue > 0 ? "text-green-700" : "text-gray-400"}`}>
+                                  ${(s.revenue / 1000000).toFixed(1)}M
+                                </span>
+                                {s.revenue > 0 && (
+                                  <div className="w-16 h-1 mt-1 bg-gray-100 rounded-full overflow-hidden">
+                                     <div 
+                                        className="h-full bg-green-500 rounded-full opacity-60"
+                                        style={{ width: `${Math.min(100, (s.revenue / (rankedStudios[0].revenue || 1)) * 100)}%` }}
+                                     />
+                                  </div>
+                                )}
+                             </div>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
 
-          {/* Variety Industry News */}
+          {/* Variety Industry News - REDESIGNED */}
           <div className="lg:col-span-4 h-[540px]">
-            <div className="h-full bg-[#ece9d8] bevel-outset rounded-sm overflow-hidden flex flex-col">
-              <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
-                Variety Industry Reports
-              </div>
-              <div className="flex flex-col h-full bg-[#f1f1f1] overflow-hidden">
-                <div className="bg-[#cc0000] border-b border-black p-2 flex flex-col items-center shrink-0">
-                  <h1
-                    className="text-white font-serif text-2xl italic font-black tracking-tighter"
-                    style={{
-                      fontFamily: "Georgia, serif",
-                      textShadow: "1px 1px 0px rgba(0,0,0,0.5)",
-                    }}
-                  >
-                    VARIETY
-                  </h1>
-                  <div className="w-full h-[1px] bg-white/30 my-1"></div>
-                  <span className="text-[8px] text-white font-bold uppercase tracking-[0.2em]">
-                    Daily Headlines • Hollywood, CA
-                  </span>
+            <div className="h-full bg-white border border-gray-400 flex flex-col shadow-sm">
+                {/* Y2K HEADER */}
+                <div className="bg-[#cc0000] p-3 flex flex-col border-b-4 border-black">
+                    <h1 className="text-white text-3xl font-black italic tracking-tighter leading-none text-center" style={{ fontFamily: "Times New Roman, serif" }}>
+                        VARIETY<span className="text-xl font-normal not-italic opacity-80">.com</span>
+                    </h1>
+                    <div className="text-[9px] text-white font-bold tracking-[0.3em] text-center mt-1 uppercase opacity-90">
+                        The Global Authority
+                    </div>
                 </div>
 
-                <div className="flex-1 bg-white overflow-y-auto border-t border-[#808080]">
-                  <table className="w-full text-left border-collapse table-fixed">
-                    <thead className="bg-gray-100 border-b border-gray-300 text-[8px] font-bold text-gray-500 uppercase">
-                      <tr>
-                        <th className="w-8 px-2 py-1 border-r">ST</th>
-                        <th className="w-10 px-2 py-1 border-r">PER</th>
-                        <th className="px-2 py-1">SUBJECT</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {recentEvents.map((e) => (
-                        <tr
-                          key={e.id}
-                          className="hover:bg-blue-600 hover:text-white group transition-colors cursor-default"
-                        >
-                          <td className="px-2 py-2 border-r border-gray-50 group-hover:border-blue-500 align-top">
-                            <StatusIcon type={e.type} />
-                          </td>
-                          <td className="px-2 py-2 border-r border-gray-50 group-hover:border-blue-500 text-[9px] font-mono font-bold align-top">
-                            M{e.month}
-                          </td>
-                          <td className="px-2 py-2 text-[10px] font-medium leading-snug">
-                            {e.message}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* SUBHEADER INFO */}
+                <div className="bg-[#f0f0f0] border-b border-gray-300 px-2 py-1 flex justify-between items-center text-[9px] text-gray-600 font-bold uppercase">
+                    <span>{studioName} Edition</span>
+                    <span>{clock ? getMonthName(clock.month) + ' ' + clock.year : state.year}</span>
                 </div>
 
-                <div className="px-2 py-1 bg-[#ece9d8] border-t border-[#808080] text-[8px] text-gray-500 font-bold flex justify-between shrink-0">
-                  <span>CONNECTED TO WIRE SERVICE</span>
-                  <span>v1.0.3</span>
+                {/* CONTENT AREA */}
+                <div className="flex-1 overflow-y-auto bg-white p-0">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-[#f8f8f8] border-b border-gray-200 sticky top-0 z-10">
+                            <tr>
+                                <th className="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider w-8">Type</th>
+                                <th className="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">Headline</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                             {recentEvents.length === 0 ? (
+                                <tr>
+                                    <td colSpan={2} className="px-4 py-8 text-center text-gray-400 text-xs italic">
+                                        No recent industry news.
+                                    </td>
+                                </tr>
+                             ) : (
+                                recentEvents.map((e) => (
+                                    <tr key={e.id} className="group hover:bg-[#fff9e6] transition-colors">
+                                        <td className="px-3 py-2.5 align-top">
+                                           <StatusIcon type={e.type} />
+                                        </td>
+                                        <td className="px-3 py-2.5 align-top">
+                                            <div className="text-[11px] leading-snug text-gray-800 font-medium font-sans" style={{ fontFamily: "Verdana, sans-serif" }}>
+                                                {e.message}
+                                            </div>
+                                            <div className="text-[9px] text-gray-400 mt-0.5 font-mono">
+                                                {getMonthName(e.month)} {e.year}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                             )}
+                        </tbody>
+                    </table>
                 </div>
-              </div>
+
+                {/* FOOTER */}
+                <div className="bg-[#f0f0f0] border-t border-gray-300 p-2 text-center">
+                    <button className="text-[10px] text-[#cc0000] font-bold hover:underline uppercase tracking-wide">
+                        Read Full Issue &rarr;
+                    </button>
+                </div>
             </div>
           </div>
         </div>

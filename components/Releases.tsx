@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { GameState, ProjectStatus, Movie } from "../types";
 import { RetroButton } from "./RetroUI";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Props {
   state: GameState;
@@ -26,6 +27,7 @@ const getProfitInfo = (movie: Movie) => {
 
 // Box Office Charts Tab
 const BoxOfficeCharts: React.FC<{ state: GameState }> = ({ state }) => {
+  const { user } = useAuth();
   // Get all released movies from current year, sorted by revenue
   const thisYearMovies = state.projects
     .filter(p => p.status === ProjectStatus.Released && p.releaseYear === state.year)
@@ -60,10 +62,10 @@ const BoxOfficeCharts: React.FC<{ state: GameState }> = ({ state }) => {
               </thead>
               <tbody>
                 {thisYearMovies.map((movie, idx) => {
-                  const studio = movie.studioId === 'player'
+                  const studio = movie.studioId === user?.id
                     ? state.studioName
                     : state.rivals.find(r => r.id === movie.studioId)?.name || 'Unknown';
-                  const isPlayer = movie.studioId === 'player';
+                  const isPlayer = movie.studioId === user?.id;
                   return (
                     <tr
                       key={movie.id}
@@ -110,7 +112,7 @@ const BoxOfficeCharts: React.FC<{ state: GameState }> = ({ state }) => {
               </thead>
               <tbody>
                 {allTimeTop.map((movie, idx) => {
-                  const isPlayer = movie.studioId === 'player';
+                  const isPlayer = movie.studioId === user?.id;
                   return (
                     <tr
                       key={movie.id}
@@ -139,8 +141,9 @@ const BoxOfficeCharts: React.FC<{ state: GameState }> = ({ state }) => {
 
 // My Films Tab
 const MyFilms: React.FC<{ state: GameState }> = ({ state }) => {
+  const { user } = useAuth();
   const released = state.projects
-    .filter((p) => p.status === ProjectStatus.Released && p.studioId === 'player')
+    .filter((p) => p.status === ProjectStatus.Released && p.studioId === user?.id)
     .reverse();
 
   return (

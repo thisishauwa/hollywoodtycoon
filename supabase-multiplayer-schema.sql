@@ -270,23 +270,31 @@ BEGIN
       );
 
       -- Create success event
-      INSERT INTO events (user_id, type, message)
-      VALUES (
+      INSERT INTO game_events (user_id, event_type, title, description, month, year)
+      SELECT
         expired_bid.user_id,
         'GOOD',
-        'AUCTION WON: Rights to "' || expired_bid.title || '" secured for $' || expired_bid.amount || '!'
-      );
+        'Auction Won',
+        'AUCTION WON: Rights to "' || expired_bid.title || '" secured for $' || expired_bid.amount || '!',
+        g.month,
+        g.year
+      FROM global_game_clock g
+      WHERE g.id = 1;
 
       -- Remove script from market
       DELETE FROM scripts WHERE id = expired_bid.script_id;
     ELSE
       -- Create failure event
-      INSERT INTO events (user_id, type, message)
-      VALUES (
+      INSERT INTO game_events (user_id, event_type, title, description, month, year)
+      SELECT
         expired_bid.user_id,
         'BAD',
-        'AUCTION FAILED: Insufficient funds for "' || expired_bid.title || '". Need $' || expired_bid.amount || '.'
-      );
+        'Auction Failed',
+        'AUCTION FAILED: Insufficient funds for "' || expired_bid.title || '". Need $' || expired_bid.amount || '.',
+        g.month,
+        g.year
+      FROM global_game_clock g
+      WHERE g.id = 1;
     END IF;
 
     -- Mark all bids for this script as inactive

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Script, RivalStudio } from "../types";
-import { RetroButton, RetroInput } from "./RetroUI";
+import { RetroButton } from "./RetroUI";
 
 interface Props {
   marketScripts: Script[];
@@ -10,6 +10,205 @@ interface Props {
   onBid: (scriptId: string, amount: number) => void;
 }
 
+const GENRES = ["Action", "Comedy", "Drama", "Horror", "Romance", "Sci-Fi", "Thriller"];
+
+interface DetailProps {
+  script: Script;
+  isOwned: boolean;
+  onClose: () => void;
+  onBid?: (amount: number) => void;
+  balance: number;
+  rivalName?: string;
+}
+
+const ScriptDetailModal: React.FC<DetailProps> = ({
+  script,
+  isOwned,
+  onClose,
+  onBid,
+  balance,
+  rivalName
+}) => {
+  const [activeTab, setActiveTab] = useState<"General" | "Plot" | "Market">("General");
+  const [bidAmount, setBidAmount] = useState<number>(script.currentBid + 50000);
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/20 backdrop-blur-[1px] font-sans">
+      <div className="w-[450px] bg-[#ece9d8] bevel-outset rounded-t-lg rounded-b shadow-2xl flex flex-col xp-window-shadow">
+        {/* XP HEADER */}
+        <div className="
+           flex items-center justify-between px-2 h-[28px] shrink-0 select-none cursor-default
+           bg-gradient-to-r from-[#0058ee] to-[#3f8cf3] rounded-t-[3px]
+        ">
+           <div className="flex items-center gap-1.5">
+             <span className="font-bold text-white text-[12px] drop-shadow-sm" style={{ textShadow: "1px 1px 0px rgba(0,0,0,0.5)" }}>
+                {script.title} Properties
+             </span>
+           </div>
+           <div className="flex gap-[2px]">
+             <button
+                onClick={onClose}
+                className="hover:brightness-110 active:brightness-90 transition-all"
+                title="Close"
+              >
+                <img
+                  src="/images/close.svg"
+                  alt="Close"
+                  className="w-[21px] h-[21px]"
+                />
+              </button>
+           </div>
+        </div>
+
+        {/* TABS */}
+        <div className="px-3 pt-3 flex items-end">
+          {(["General", "Plot", isOwned ? "Rights" : "Market"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`
+                px-4 py-1.5 text-[11px] border-t border-x rounded-t-md mr-1 mb-[-1px] relative z-10 transition-all
+                ${
+                  activeTab === tab
+                    ? "bg-white border-[#808080] border-b-white font-bold"
+                    : "bg-[#d8d4bf] border-[#808080] text-gray-700 hover:bg-[#e4e0c8]"
+                }
+              `}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* CONTENT */}
+        <div className="flex-1 p-4 bg-white m-3 mt-0 border border-[#808080] shadow-inner h-[320px] overflow-y-auto">
+          {activeTab === "General" && (
+             <div className="flex gap-4">
+                <div className="w-20 shrink-0 flex flex-col items-center gap-2">
+                   <div className="w-16 h-20 bg-yellow-50 border border-yellow-200 shadow-sm flex items-center justify-center text-3xl">
+                      📜
+                   </div>
+                   <div className="text-[10px] text-center font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                      {script.genre}
+                   </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                   <div className="border-b border-gray-200 pb-2">
+                      <div className="text-[10px] text-gray-500 uppercase font-bold">Project Title</div>
+                      <div className="text-sm font-bold text-gray-800">{script.title}</div>
+                      <div className="text-[10px] text-gray-500 italic">"{script.tagline}"</div>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-2">
+                      <div>
+                          <div className="text-[10px] text-gray-500 uppercase font-bold">Script Quality</div>
+                          <div className="h-3 bg-gray-200 border border-gray-300 rounded-sm overflow-hidden mt-1">
+                              <div className="h-full bg-gradient-to-r from-green-400 to-green-600" style={{ width: `${script.quality}%` }} />
+                          </div>
+                          <div className="text-[9px] text-right text-gray-500">{script.quality}/100</div>
+                      </div>
+                      <div>
+                          <div className="text-[10px] text-gray-500 uppercase font-bold">Complexity</div>
+                          <div className="h-3 bg-gray-200 border border-gray-300 rounded-sm overflow-hidden mt-1">
+                              <div className="h-full bg-gradient-to-r from-blue-400 to-blue-600" style={{ width: `${script.complexity}%` }} />
+                          </div>
+                      </div>
+                   </div>
+
+                   <div>
+                       <div className="text-[10px] text-gray-500 uppercase font-bold">Tone</div>
+                       <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px]">
+                          {script.tone}
+                       </span>
+                   </div>
+                </div>
+             </div>
+          )}
+
+          {activeTab === "Plot" && (
+             <div className="space-y-2">
+                <h4 className="text-[11px] font-bold text-gray-700 border-b border-gray-200 pb-1">Logline</h4>
+                <div className="p-3 bg-gray-50 border border-gray-200 text-[11px] leading-relaxed italic text-gray-800">
+                   {script.description}
+                </div>
+                
+                <div className="pt-2">
+                    <h4 className="text-[11px] font-bold text-gray-700 border-b border-gray-200 pb-1 mb-2">Requirements</h4>
+                    <ul className="list-disc list-inside text-[11px] text-gray-600 space-y-1">
+                       <li>Required Cast Size: <span className="font-bold">{script.requiredCast} actors</span></li>
+                       <li>Estimated Budget Base: <span className="font-bold text-green-700">${script.baseCost.toLocaleString()}</span></li>
+                       <li>Genre: {script.genre}</li>
+                    </ul>
+                </div>
+             </div>
+          )}
+
+          {activeTab === "Market" && !isOwned && (
+             <div className="space-y-4 pt-2">
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded text-center">
+                    <div className="text-[10px] text-blue-600 uppercase font-bold mb-1">Current High Bid</div>
+                    <div className="text-2xl font-mono font-bold text-blue-800">
+                        ${script.currentBid.toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-gray-500 mt-1">
+                        High Bidder: <span className="font-bold text-gray-700">{rivalName || "Unknown"}</span>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-gray-700 block">Place Your Bid ($)</label>
+                    <div className="flex gap-2">
+                        <input 
+                           type="number" 
+                           value={bidAmount}
+                           onChange={(e) => setBidAmount(parseInt(e.target.value))}
+                           className="flex-1 border-2 border-gray-300 p-1 font-mono text-sm focus:border-blue-500 outline-none"
+                        />
+                        <button 
+                           onClick={() => onBid && onBid(bidAmount)}
+                           disabled={bidAmount <= script.currentBid || balance < bidAmount}
+                           className="px-4 py-1 bg-[#ece9d8] border-2 border-white border-r-gray-500 border-b-gray-500 active:border-gray-500 active:border-r-white active:border-b-white active:bg-gray-200 text-[11px] font-bold disabled:opacity-50"
+                        >
+                           BID NOW
+                        </button>
+                    </div>
+                    {balance < bidAmount && (
+                        <p className="text-[10px] text-red-600 font-bold">Insufficient funds</p>
+                    )}
+                    {bidAmount <= script.currentBid && (
+                        <p className="text-[10px] text-red-600">Bid must be higher than current value.</p>
+                    )}
+                </div>
+             </div>
+          )}
+
+          {activeTab === "Rights" && isOwned && (
+              <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl">
+                      ✓
+                  </div>
+                  <h3 className="text-lg font-bold text-green-800">Rights Acquired</h3>
+                  <p className="text-[11px] text-gray-600 max-w-[200px]">
+                      Your studio owns the exclusive production rights to this script.
+                  </p>
+                  <div className="inline-block px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-[10px] font-bold rounded">
+                      Ready for Pre-Production
+                  </div>
+              </div>
+          )}
+        </div>
+
+        {/* FOOTER */}
+        <div className="p-3 flex justify-end gap-2 bg-[#ece9d8] border-t border-white rounded-b-lg">
+           <button onClick={onClose} className="min-w-[70px] px-3 py-1 bg-white border border-[#003c74] rounded-[3px] text-[11px] hover:bg-gray-50 shadow-sm">
+             Close
+           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const ScriptMarket: React.FC<Props> = ({
   marketScripts,
   ownedScripts,
@@ -17,180 +216,209 @@ export const ScriptMarket: React.FC<Props> = ({
   rivals,
   onBid,
 }) => {
-  const [biddingScriptId, setBiddingScriptId] = useState<string | null>(null);
-  const [bidAmount, setBidAmount] = useState<number>(0);
+  const [filter, setFilter] = useState<string>("All");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [selectedScript, setSelectedScript] = useState<Script | null>(null);
+
+  const allScripts = [
+      ...marketScripts.map(s => ({ ...s, status: 'Market' })),
+      ...ownedScripts.map(s => ({ ...s, status: 'Owned' }))
+  ];
+
+  const filteredScripts = filter === "All"
+      ? allScripts.filter(s => s.status === 'Market') // "All" implies market
+      : filter === "My Portfolio"
+      ? allScripts.filter(s => s.status === 'Owned')
+      : allScripts.filter(s => s.genre === filter); // Genre filter (shows both market and owned?) -> likely just market if finding scripts
+
+  // Refined filter logic:
+  // "All" -> All Market Scripts
+  // "My Portfolio" -> All Owned Scripts
+  // "Genre" -> Market Scripts of that genre
+  const displayScripts = (() => {
+      if (filter === "My Portfolio") return ownedScripts.map(s => ({ ...s, status: 'Owned' }));
+      
+      const marketWithStatus = marketScripts.map(s => ({ ...s, status: 'Market' }));
+      if (filter === "All") return marketWithStatus;
+      return marketWithStatus.filter(s => s.genre === filter);
+  })();
 
   const getBidderName = (id: string) => {
     if (id === "player") return "YOU";
     return rivals.find((r) => r.id === id)?.name || "Unknown";
   };
 
-  const startBid = (s: Script) => {
-    setBiddingScriptId(s.id);
-    setBidAmount(s.currentBid + 50000);
-  };
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-2 h-full bg-[#ece9d8] overflow-hidden p-2">
-      {/* Market Feed */}
-      <div className="md:col-span-8 h-full flex flex-col min-h-0">
-        <div className="flex flex-col h-full bg-[#ece9d8] bevel-outset overflow-hidden">
-          <div className="flex flex-col h-full bg-gray-200">
-            <div className="bg-[#0058ee] p-2 text-center text-[10px] font-bold text-white uppercase tracking-widest shrink-0">
-              ACTIVE TRADE FLOOR
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-3">
-              {marketScripts.map((script) => (
-                <div
-                  key={script.id}
-                  className={`bg-white bevel-outset p-3 transition-all ${
-                    script.highBidderId === "player"
-                      ? "ring-2 ring-[#38d438]"
-                      : ""
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1 pr-4">
-                      <h3 className="font-bold text-[#003399] text-sm flex items-center gap-2">
-                        <span className="text-xl">📜</span> {script.title}
-                      </h3>
-                      <p className="text-[10px] text-gray-500 italic mt-0.5">
-                        "{script.tagline}"
-                      </p>
-                    </div>
-                    <div
-                      className={`text-[9px] px-2 py-1 bevel-outset font-bold uppercase ${
-                        script.highBidderId === "player"
-                          ? "bg-[#38d438] text-white"
-                          : "bg-red-600 text-white"
-                      }`}
-                    >
-                      {script.highBidderId === "player"
-                        ? "HIGH BIDDER"
-                        : "OUTBID"}
-                    </div>
-                  </div>
-
-                  <div className="text-[11px] text-gray-700 bg-gray-50 p-2 border border-gray-300 mb-3 leading-tight">
-                    {script.description}
-                  </div>
-
-                  <div className="flex justify-between items-end border-t border-gray-100 pt-2">
-                    <div>
-                      <div className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">
-                        Leading Entity
-                      </div>
-                      <div
-                        className={`text-xs font-bold ${
-                          script.highBidderId === "player"
-                            ? "text-green-700"
-                            : "text-red-700"
-                        }`}
-                      >
-                        {getBidderName(script.highBidderId)}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">
-                        Current Value
-                      </div>
-                      <div className="text-lg font-bold text-[#003399] leading-none font-mono">
-                        ${script.currentBid.toLocaleString()}
-                      </div>
-                      <RetroButton
-                        variant="primary"
-                        onClick={() => startBid(script)}
-                        className="mt-2 text-[10px]"
-                      >
-                        PLACE BID
-                      </RetroButton>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {marketScripts.length === 0 && (
-                <div className="text-center p-8 text-gray-400 italic">
-                  Connecting to trade server...
-                </div>
-              )}
-            </div>
+    <div className="h-full flex bg-[#ece9d8] font-tahoma text-[11px]">
+      {/* WINDOWS XP SIDEBAR */}
+      <div className="w-48 flex flex-col gap-3 p-3 bg-gradient-to-b from-[#7b9fe9] to-[#6079d6] border-r border-[#003399] overflow-y-auto shrink-0">
+        
+        {/* TASKS BOX */}
+        <div className="bg-white rounded-t-sm rounded-b-sm overflow-hidden shadow-sm">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-3 py-1 flex justify-between items-center cursor-pointer">
+             <span className="font-bold text-white">Market Tasks</span>
           </div>
-        </div>
-      </div>
-
-      {/* Portfolio & Interface */}
-      <div className="md:col-span-4 flex flex-col gap-2 h-full min-h-0">
-        <div className="flex-1 flex flex-col bg-[#ece9d8] bevel-outset overflow-hidden">
-          <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
-            IP Portfolio
-          </div>
-          <div className="flex flex-col h-full bg-[#f4f4f4]">
-            <div className="flex-1 overflow-y-auto p-2 space-y-2">
-              {ownedScripts.map((script) => (
-                <div
-                  key={script.id}
-                  className="bg-white p-2 bevel-outset flex justify-between items-center"
-                >
-                  <div>
-                    <h3 className="font-bold text-gray-800 text-xs truncate w-32">
-                      {script.title}
-                    </h3>
-                    <div className="text-[9px] text-blue-600 font-bold uppercase">
-                      {script.genre}
-                    </div>
-                  </div>
-                  <div className="text-lg">🎬</div>
-                </div>
-              ))}
-              {ownedScripts.length === 0 && (
-                <div className="text-center p-4 text-gray-400 text-[10px] italic mt-4">
-                  Rights Portfolio is empty.
-                </div>
-              )}
-            </div>
+          <div className="bg-[#d6dff7] p-2 flex flex-col gap-1 text-[#215dc6]">
+            <button 
+                onClick={() => setFilter("All")}
+                className={`text-left hover:underline px-1 py-0.5 flex items-center gap-2 ${filter === "All" ? "font-bold" : ""}`}
+            >
+                <img src="/images/search.svg" className="w-3 h-3 opacity-70" alt="" />
+                View Active Market
+            </button>
+            <button 
+                onClick={() => setFilter("My Portfolio")}
+                className={`text-left hover:underline px-1 py-0.5 flex items-center gap-2 ${filter === "My Portfolio" ? "font-bold" : ""}`}
+            >
+                <img src="/images/star.svg" className="w-3 h-3 opacity-70" alt="" />
+                View My Portfolio
+            </button>
           </div>
         </div>
 
-        {biddingScriptId && (
-          <div className="h-40 shrink-0 flex flex-col bg-[#ece9d8] bevel-outset overflow-hidden">
-            <div className="bg-[#0058ee] text-white px-2 py-1 text-[10px] font-bold uppercase shrink-0">
-              Bid Terminal
-            </div>
-            <div className="flex flex-col gap-2 p-3 bg-[#ffffdd] h-full">
-              <p className="text-[10px] truncate font-bold">
-                Project: "
-                {marketScripts.find((s) => s.id === biddingScriptId)?.title}"
-              </p>
-              <div className="flex gap-2">
-                <RetroInput
-                  type="number"
-                  value={bidAmount}
-                  onChange={(e) => setBidAmount(parseInt(e.target.value))}
-                  className="flex-1 font-mono text-xl text-green-700 font-bold"
-                />
-                <RetroButton
-                  variant="primary"
-                  onClick={() => {
-                    onBid(biddingScriptId, bidAmount);
-                    setBiddingScriptId(null);
-                  }}
-                >
-                  BID
-                </RetroButton>
-              </div>
-              <div className="flex justify-between text-[9px] text-gray-500 font-bold uppercase mt-1">
-                <span>Balance: ${balance.toLocaleString()}</span>
+        {/* GENRE FILTER BOX */}
+        <div className="bg-white rounded-t-sm rounded-b-sm overflow-hidden shadow-sm">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-3 py-1 flex justify-between items-center cursor-pointer">
+             <span className="font-bold text-white">Filter by Genre</span>
+          </div>
+          <div className="bg-[#d6dff7] p-2 flex flex-col gap-1 text-[#215dc6]">
+             {GENRES.map((g) => (
                 <button
-                  onClick={() => setBiddingScriptId(null)}
-                  className="text-red-600 underline"
+                    key={g}
+                    onClick={() => setFilter(g)}
+                    className={`text-left hover:underline px-1 py-0.5 flex items-center gap-2 ${filter === g ? "font-bold" : ""}`}
                 >
-                  Cancel
+                    <div className={`w-1.5 h-1.5 rounded-full ${filter === g ? "bg-[#215dc6]" : "bg-[#215dc6]/50"}`} />
+                    {g}
                 </button>
-              </div>
-            </div>
+             ))}
           </div>
-        )}
+        </div>
       </div>
+
+      {/* MAIN VIEW */}
+      <div className="flex-1 flex flex-col bg-white overflow-hidden">
+        {/* ADDRESS/TOOLBAR */}
+        <div className="h-8 bg-[#ece9d8] border-b border-[#808080] flex items-center px-2 gap-2 shrink-0 shadow-sm z-10">
+            <span className="text-gray-500">Address:</span>
+            <div className="flex-1 bg-white border border-[#808080] h-5 flex items-center px-1 shadow-inner">
+                Script Market/{filter}
+            </div>
+            <div className="w-px h-4 bg-gray-400 mx-1" />
+            <div className="flex gap-1">
+                <button 
+                   onClick={() => setViewMode("list")}
+                   className={`p-1 border ${viewMode === 'list' ? 'bg-white border-gray-400' : 'border-transparent hover:border-gray-300'}`}
+                   title="List View"
+                >
+                   <div className="w-3 h-3 flex flex-col justify-between">
+                       <div className="h-px bg-black w-full" />
+                       <div className="h-px bg-black w-full" />
+                       <div className="h-px bg-black w-full" />
+                   </div>
+                </button>
+                <button 
+                   onClick={() => setViewMode("grid")}
+                   className={`p-1 border ${viewMode === 'grid' ? 'bg-white border-gray-400' : 'border-transparent hover:border-gray-300'}`}
+                   title="Grid View"
+                >
+                   <div className="w-3 h-3 grid grid-cols-2 gap-0.5">
+                       <div className="bg-black" />
+                       <div className="bg-black" />
+                       <div className="bg-black" />
+                       <div className="bg-black" />
+                   </div>
+                </button>
+            </div>
+        </div>
+
+        {/* CONTENT */}
+        <div className="flex-1 overflow-y-auto">
+             {viewMode === "list" ? (
+                 <table className="w-full text-left border-collapse cursor-default">
+                    <thead className="sticky top-0 bg-[#ece9d8] z-10 shadow-sm">
+                        <tr>
+                            <th className="border-b border-r border-[#d4d0c8] px-2 py-0.5 font-normal text-gray-600 w-8"></th>
+                            <th className="border-b border-r border-[#d4d0c8] px-2 py-0.5 font-normal text-gray-600">Title</th>
+                            <th className="border-b border-r border-[#d4d0c8] px-2 py-0.5 font-normal text-gray-600 w-24">Genre</th>
+                            <th className="border-b border-r border-[#d4d0c8] px-2 py-0.5 font-normal text-gray-600 w-16">Quality</th>
+                            <th className="border-b border-r border-[#d4d0c8] px-2 py-0.5 font-normal text-gray-600 w-24 text-right">Current Bid</th>
+                            <th className="border-b border-[#d4d0c8] px-2 py-0.5 font-normal text-gray-600 w-32 pl-4">Leading Entity</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                        {displayScripts.map((script, idx) => (
+                           <tr 
+                                key={script.id}
+                                onClick={() => setSelectedScript(script)}
+                                className={`
+                                    group border-b border-gray-100 last:border-0 hover:bg-[#e0e8f5]
+                                    ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f7f7f7]'}
+                                `}
+                            >
+                                <td className="px-2 py-1 text-center text-lg leading-none">
+                                    {script.status === 'Owned' ? '⭐' : '📜'}
+                                </td>
+                                <td className="px-2 py-1 font-bold text-[#003399]">
+                                    {script.title}
+                                </td>
+                                <td className="px-2 py-1">{script.genre}</td>
+                                <td className="px-2 py-1">
+                                    <div className="w-full bg-gray-200 h-1.5 rounded-sm overflow-hidden">
+                                        <div className="bg-green-500 h-full" style={{ width: `${script.quality}%` }} />
+                                    </div>
+                                </td>
+                                <td className="px-2 py-1 text-right font-mono">
+                                    ${script.currentBid.toLocaleString()}
+                                </td>
+                                <td className="px-2 py-1 pl-4">
+                                     <span className={`font-bold ${script.highBidderId === 'player' ? 'text-green-600' : 'text-red-800'}`}>
+                                        {getBidderName(script.highBidderId)}
+                                     </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                 </table>
+             ) : (
+                <div className="grid grid-cols-3 gap-4 p-4">
+                    {displayScripts.map((script) => (
+                        <div
+                            key={script.id}
+                            onClick={() => setSelectedScript(script)}
+                            className="flex flex-col items-center gap-1 p-4 hover:bg-blue-50 border border-transparent hover:border-blue-200 rounded cursor-pointer"
+                        >
+                            <div className="text-4xl shadow-sm">📜</div>
+                            <div className="text-center">
+                                <div className="font-bold text-[#003399] truncate w-32">{script.title}</div>
+                                <div className="text-[10px] text-gray-500">{script.genre}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+             )}
+             
+             {displayScripts.length === 0 && (
+                 <div className="p-8 text-center text-gray-400 italic">
+                     No scripts found in this category.
+                 </div>
+             )}
+        </div>
+      </div>
+
+      {selectedScript && (
+          <ScriptDetailModal 
+              script={selectedScript}
+              isOwned={selectedScript.status === 'Owned'}
+              onClose={() => setSelectedScript(null)}
+              balance={balance}
+              onBid={onBid ? (amount) => {
+                  onBid(selectedScript.id, amount);
+                  setSelectedScript(null);
+              } : undefined}
+              rivalName={getBidderName(selectedScript.highBidderId)}
+          />
+      )}
     </div>
   );
 };

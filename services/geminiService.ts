@@ -34,25 +34,53 @@ const generateLocalScript = (count: number): Partial<Script>[] => {
     });
 };
 
-const LOCAL_HEADLINES = [
-    "Brad Fitt spotted wearing cargo pants at the premiere.",
-    "Studio head denies rumors of a 'Box Office Curse'.",
-    "New diet trend 'The Grapefruit Only' diet sweeps Hollywood.",
-    "Paparazzi caught hiding in bushes outside A-Lister's home.",
-    "Pop princess seen at local drive-thru with mysterious friend.",
-    "Action star performs own stunts, breaks two toes.",
-    "Direct-to-DVD market sees 300% growth this quarter.",
-    "Diva actress demands specific brand of bottled water on set."
+const LOCAL_HEADLINE_TEMPLATES = [
+    "{name} spotted wearing cargo pants at the premiere.",
+    "Studio head denies rumors of a 'Box Office Curse' involving {name}.",
+    "{name} adopts a tiger? Rumors swirl.",
+    "Paparazzi caught hiding in bushes outside {name}'s home.",
+    "{name} seen at local drive-thru with mysterious friend.",
+    "{name} performs own stunts, breaks two toes.",
+    "{name} demands specific brand of bottled water on set.",
+    "{name} helps old lady cross the street - PR stunt?.",
+    "Fashion disaster! {name} wears denim on denim.",
+    "{name} to launch own perfume line called 'Essence'."
 ];
 
-// --- API WRAPPERS ---
+export const generateRandomEvent = async (year: number, actors: Actor[] = []): Promise<string> => {
+    // Pick a random actor if available
+    const subject = actors.length > 0 ? actors[Math.floor(Math.random() * actors.length)] : null;
+    const subjectName = subject ? subject.name : "A mystery celebrity";
+
+    // Mostly use local headlines to save tokens
+    if (Math.random() > 0.2 || !process.env.API_KEY) {
+        const template = LOCAL_HEADLINE_TEMPLATES[Math.floor(Math.random() * LOCAL_HEADLINE_TEMPLATES.length)];
+        return template.replace("{name}", subjectName);
+    }
+    
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const prompt = subject 
+            ? `One short 2000s Hollywood gossip headline for ${year} about actor ${subject.name} (known for being ${subject.personality[0]}).`
+            : `One short 2000s Hollywood gossip headline for ${year}.`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+        });
+        return response.text || LOCAL_HEADLINE_TEMPLATES[0].replace("{name}", subjectName);
+    } catch (e) {
+        console.error("Gemini event generation error:", e);
+        const template = LOCAL_HEADLINE_TEMPLATES[Math.floor(Math.random() * LOCAL_HEADLINE_TEMPLATES.length)];
+        return template.replace("{name}", subjectName);
+    }
+}
 
 export const generateNewScripts = async (currentYear: number): Promise<Partial<Script>[]> => {
     // Check for API key presence
     if (!process.env.API_KEY) return generateLocalScript(3);
 
     try {
-        // Initializing with named parameter as required by guidelines
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -75,7 +103,6 @@ export const generateNewScripts = async (currentYear: number): Promise<Partial<S
                 }
              }
         });
-        // Accessing .text property directly as per guidelines
         return response.text ? JSON.parse(response.text) : generateLocalScript(3);
     } catch (e) {
         console.error("Gemini script generation error:", e);
@@ -96,30 +123,9 @@ export const generateMovieReview = async (movie: Movie): Promise<string> => {
             model: 'gemini-3-flash-preview',
             contents: `Short review for "${movie.title}" (${movie.genre}). Score ${movie.quality}/100. style: 2000s critic.`,
         });
-        // Using .text property directly
         return response.text || "No review available.";
     } catch (e) {
         console.error("Gemini movie review error:", e);
         return "Review unavailable.";
     }
 };
-
-export const generateRandomEvent = async (year: number): Promise<string> => {
-    // Mostly use local headlines to save tokens
-    if (Math.random() > 0.2 || !process.env.API_KEY) {
-        return LOCAL_HEADLINES[Math.floor(Math.random() * LOCAL_HEADLINES.length)];
-    }
-    
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `One short 2000s Hollywood gossip headline for ${year}.`,
-        });
-        // Using .text property directly
-        return response.text || LOCAL_HEADLINES[0];
-    } catch (e) {
-        console.error("Gemini event generation error:", e);
-        return LOCAL_HEADLINES[Math.floor(Math.random() * LOCAL_HEADLINES.length)];
-    }
-}
