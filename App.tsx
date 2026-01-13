@@ -1484,15 +1484,13 @@ const App: React.FC = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ username: name }) // Note: avatar_url might need to be added to profile schema if not present, but using username first
+        .update({ username: name })
         .eq('id', user.id);
 
-      // Also update metadata if needed, but profile table is primary source for game state
-      
       if (error) throw error;
       
-      // Force reload to refresh context/state for now (simplest way to ensure all components update)
-      window.location.reload();
+      // Profile will update automatically via AuthContext subscription
+      // No need to reload - this was causing infinite save loop
     } catch (err) {
       console.error("Error updating profile:", err);
       alert("Failed to update profile via 'User Accounts' settings.");
