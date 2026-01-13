@@ -21,7 +21,7 @@ export interface OtherStudio {
   balance: number;
 }
 
-export const useStudioMessages = () => {
+export const useStudioMessages = (playNotificationSound?: () => void) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<StudioMessage[]>([]);
   const [otherStudios, setOtherStudios] = useState<OtherStudio[]>([]);
@@ -326,6 +326,10 @@ export const useStudioMessages = () => {
           const newMsg = payload.new as any;
           // Only add if it's for us
           if (newMsg.from_user_id === user.id || newMsg.to_user_id === user.id) {
+            // Play sound if we're the recipient (not the sender)
+            if (newMsg.to_user_id === user.id && playNotificationSound) {
+              playNotificationSound();
+            }
             fetchMessages(); // Refetch to get usernames
           }
         }

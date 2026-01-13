@@ -1,4 +1,5 @@
 import { GameState, Movie, Actor, AwardCategory, AwardNomination, AwardsCeremony, ProjectStatus, GameEvent } from '../types';
+import { applyReputationChange } from '../constants';
 
 const uuid = () => 'award-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
 
@@ -180,7 +181,7 @@ export const applyAwardEffects = async (
     // Studio reputation boost (only for player)
     if (winner.studioId === 'player') {
       const reputationBoost = winner.category === AwardCategory.BestPicture ? 15 : 5;
-      newState.reputation = Math.min(100, newState.reputation + reputationBoost);
+      newState.reputation = applyReputationChange(newState.reputation, reputationBoost);
     }
 
     // Generate global event for major awards (all studios see these)

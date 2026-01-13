@@ -75,6 +75,21 @@ export const getDiscountedSalary = (baseSalary: number, studioReputation: number
   return Math.floor(baseSalary * (1 - studioTierInfo.salaryDiscount / 100));
 };
 
+// Apply reputation change with tier protection
+// Positive changes: applied normally (can level up)
+// Negative changes: clamped to current tier minimum (can't level down, only lose progress)
+export const applyReputationChange = (currentReputation: number, change: number): number => {
+  if (change >= 0) {
+    // Positive change - can go up freely, capped at 100
+    return Math.min(100, currentReputation + change);
+  } else {
+    // Negative change - can't drop below current tier's minimum
+    const currentTier = getStudioTier(currentReputation);
+    const newReputation = currentReputation + change;
+    return Math.max(currentTier.minReputation, newReputation);
+  }
+};
+
 const STUDIO_NAMES = [
   "Metro-G-M",
   "Global-Universal",

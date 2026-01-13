@@ -13,6 +13,7 @@ interface Props {
   isActive: boolean;
   zIndex: number;
   onFocus: () => void;
+  playNotificationSound?: () => void;
 }
 
 // Combined type for display - can be real player or AI rival
@@ -36,6 +37,7 @@ export const StudioNetwork: React.FC<Props> = ({
   isActive,
   zIndex,
   onFocus,
+  playNotificationSound,
 }) => {
   const { user } = useAuth();
   const {
@@ -48,7 +50,7 @@ export const StudioNetwork: React.FC<Props> = ({
     transferMoney,
     loading: messagesLoading,
     error: messagesError,
-  } = useStudioMessages();
+  } = useStudioMessages(playNotificationSound);
 
   const [selectedStudio, setSelectedStudio] = useState<DisplayStudio | null>(null);
   const [viewMode, setViewMode] = useState<"chat" | "profile">("chat");

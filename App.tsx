@@ -6,6 +6,7 @@ import {
   START_MONTH,
   START_YEAR,
   RIVAL_STUDIOS,
+  applyReputationChange,
 } from "./constants";
 import { useActors } from "./hooks/useActors";
 import { calculateEstimatedRelease } from "./services/productionService";
@@ -42,6 +43,7 @@ import { useAwards } from "./hooks/useAwards";
 import { supabase } from "./lib/supabase";
 import { ToastContainer } from "./contexts/ToastContext";
 import { useGameNotifications } from "./hooks/useGameNotifications";
+import { useSound } from "./contexts/SoundContext";
 
 const uuid = () =>
   "id-" +
@@ -110,6 +112,7 @@ const App: React.FC = () => {
   
   // Game notifications
   const notifications = useGameNotifications();
+  const { playNotificationSound } = useSound();
   // Track last processed month/year to prevent duplicate events
   const lastProcessedTime = useRef<{ month: number; year: number } | null>(
     null
@@ -492,6 +495,24 @@ const App: React.FC = () => {
           const actorIndex = updatedActors.findIndex(a => a.id === event.actorId);
           if (actorIndex !== -1) {
             updatedActors[actorIndex] = applyActorLifecycleEvent(updatedActors[actorIndex], event);
+            
+            // CRITICAL: Persist actor changes to DB (Death, Marriage, etc.)
+            // Only the 'Leader' (who generates the events) performs this write
+            if (shouldInsertGlobalEvents) {
+                const updated = updatedActors[actorIndex];
+                // We don't await this inside the loop to avoid blocking, but we catch errors
+                supabase.from('actors').update({
+                    status: updated.status,
+                    reputation: updated.reputation,
+                    skill: updated.skill,
+                    salary: updated.salary,
+                    tier: updated.tier,
+                    // Note: If you add more tracked fields like 'gossip' or 'partnerId', add them here
+                    // stored in the 'metadata' or specific columns if they exist
+                }).eq('id', updated.id).then(({ error }) => {
+                    if (error) console.error(`[WorldEvents] Failed to persist actor update for ${updated.name}:`, error);
+                });
+            }
 
             // Format for Variety
             const formatted = formatEventForVariety(event, 'actor', targetMonth, targetYear);
@@ -606,7 +627,7 @@ const App: React.FC = () => {
             ...prev,
             actors: updatedActors,
             balance: prev.balance + balanceChange,
-            reputation: prev.reputation + reputationChange,
+            reputation: applyReputationChange(prev.reputation, reputationChange),
             events: [...prev.events, ...newEvents.map(e => ({...e, read: false}))]
         }));
         
@@ -636,6 +657,36 @@ const App: React.FC = () => {
                     age: actor.age,
                     gossip: actor.gossip
                 }).eq("id", actor.id);
+            }
+        }
+
+        // CRITICAL: Persist balance and reputation changes to Supabase
+        if (balanceChange !== 0 || reputationChange !== 0) {
+            // Fetch current values from DB to avoid stale closure issues
+            const { data: currentState } = await supabase
+                .from("game_state")
+                .select("balance, reputation")
+                .eq("user_id", user.id)
+                .single();
+
+            if (currentState) {
+                const newBalance = currentState.balance + balanceChange;
+                const newReputation = applyReputationChange(currentState.reputation, reputationChange);
+
+                console.log(`[WorldEvents] Persisting: balance ${currentState.balance} + ${balanceChange} = ${newBalance}, reputation ${currentState.reputation} + ${reputationChange} = ${newReputation} (tier-protected)`);
+
+                const { error } = await supabase
+                    .from("game_state")
+                    .update({
+                        balance: newBalance,
+                        reputation: newReputation,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq("user_id", user.id);
+
+                if (error) {
+                    console.error("[WorldEvents] Error persisting balance/reputation:", error);
+                }
             }
         }
 
@@ -882,6 +933,7 @@ const App: React.FC = () => {
 
           // Notify on phase changes
           if (phaseChanged && !released) {
+            playNotificationSound(); // Play sound for stage transition
             newEvents.push({
               id: `phase-${movie.id}-${clock.month}`,
               month: clock.month,
@@ -897,29 +949,37 @@ const App: React.FC = () => {
         setGameState((prev) => ({
           ...prev,
           balance: prev.balance + balanceChange,
-          reputation: Math.max(
-            0,
-            Math.min(100, prev.reputation + reputationChange)
-          ),
+          reputation: applyReputationChange(prev.reputation, reputationChange),
           events: [...prev.events, ...newEvents],
         }));
 
         // Update Supabase balance and reputation if changed
         if (balanceChange !== 0 || reputationChange !== 0) {
-          const { error } = await supabase
+          // Fetch current values from DB to avoid stale closure issues
+          const { data: currentState } = await supabase
             .from("game_state")
-            .update({
-              balance: gameState.balance + balanceChange,
-              reputation: Math.max(
-                0,
-                Math.min(100, gameState.reputation + reputationChange)
-              ),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", user.id);
+            .select("balance, reputation")
+            .eq("user_id", user.id)
+            .single();
 
-          if (error) {
-            console.error("Error updating balance/reputation:", error);
+          if (currentState) {
+            const newBalance = currentState.balance + balanceChange;
+            const newReputation = applyReputationChange(currentState.reputation, reputationChange);
+
+            console.log(`[Production] Persisting: balance ${currentState.balance} + ${balanceChange} = ${newBalance}, reputation ${currentState.reputation} + ${reputationChange} = ${newReputation} (tier-protected)`);
+
+            const { error } = await supabase
+              .from("game_state")
+              .update({
+                balance: newBalance,
+                reputation: newReputation,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("user_id", user.id);
+
+            if (error) {
+              console.error("Error updating balance/reputation:", error);
+            }
           }
         }
 
@@ -1574,6 +1634,7 @@ const App: React.FC = () => {
             isActive={activeWindowId === "messenger"}
             zIndex={windows.messenger.zIndex}
             onFocus={() => focusWindow("messenger")}
+            playNotificationSound={playNotificationSound}
           />
         )}
       </div>
