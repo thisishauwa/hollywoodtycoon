@@ -4,7 +4,7 @@ import { RetroProgressBar } from "./RetroUI";
 import { useGameState } from "../hooks/useGameState";
 import { useOwnedScripts } from "../hooks/useOwnedScripts";
 import { useAuth } from "../contexts/AuthContext";
-import { useGlobalClock } from "../hooks/useGlobalClock";
+import { useGlobalClockContext } from "../contexts/GlobalClockContext";
 import { useEvents } from "../hooks/useEvents";
 import { getStudioTier, STUDIO_TIERS } from "../constants";
 
@@ -53,7 +53,7 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
   const { user, profile } = useAuth();
   const { gameState: supabaseGameState } = useGameState();
   const { ownedScripts } = useOwnedScripts();
-  const { clock, formatTimeRemaining, getMonthName, isAwardSeason } = useGlobalClock();
+  const { clock, formatTimeRemaining, getMonthName, isAwardSeason } = useGlobalClockContext();
   const { events: multiplayerEvents } = useEvents();
 
   // Use Supabase balance if available, fallback to local state
@@ -91,7 +91,9 @@ export const Dashboard: React.FC<Props> = ({ state }) => {
     })),
   ].sort((a, b) => b.revenue - a.revenue);
 
-  const recentEvents = multiplayerEvents.slice(-20).reverse();
+  // useEvents hook returns events sorted NEWEST to OLDEST
+  // So we just take the first 20 to get the most recent ones
+  const recentEvents = multiplayerEvents.slice(0, 20);
 
   return (
     <div className="flex flex-col h-full bg-[#ece9d8] overflow-hidden">

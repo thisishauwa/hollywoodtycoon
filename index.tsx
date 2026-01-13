@@ -4,6 +4,7 @@ import App from "./App";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { SoundProvider } from "./contexts/SoundContext";
+import { GlobalClockProvider } from "./contexts/GlobalClockContext";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -14,11 +15,13 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <SoundProvider>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
-      </SoundProvider>
+      <GlobalClockProvider>
+        <SoundProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </SoundProvider>
+      </GlobalClockProvider>
     </AuthProvider>
   </React.StrictMode>
 );

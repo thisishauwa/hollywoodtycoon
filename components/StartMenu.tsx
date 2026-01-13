@@ -15,178 +15,370 @@ const iconHelp = "/images/8102f876b018bca29c07ca9bc0dd7609e2adc5db.png";
 const iconRun = "/images/ce00f48541fffae4db3ea6a2096246e36e66a774.png";
 const iconLogOff = "/images/e4e4b7c82836ea1d57b3e70406ce25ededc95b6c.png";
 
-// Modal Component for XP-style dialogs
+// XP-style standard window (blue title bar, beige body)
 const XPModal: React.FC<{
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   width?: string;
-}> = ({ title, onClose, children, width = "w-[400px]" }) => (
-  <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/30">
-    <div className={`${width} bg-[#ece9d8] border border-[#0054e3] rounded-t-lg shadow-2xl`}>
+  icon?: string;
+}> = ({ title, onClose, children, width = "w-[400px]", icon }) => (
+  <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/30 font-tahoma">
+    <div className={`${width} bg-[#ece9d8] border-[3px] border-[#0055e5] rounded-t-lg rounded-b-none shadow-2xl flex flex-col`}>
       {/* Title Bar */}
       <div
-        className="flex items-center justify-between px-2 h-[26px] rounded-t-[3px] select-none"
+        className="flex items-center justify-between px-2 h-[30px] rounded-t-[3px] select-none shrink-0"
         style={{
-          backgroundImage: "linear-gradient(rgb(0, 88, 238) 0%, rgb(53, 147, 255) 4%, rgb(40, 142, 255) 6%, rgb(18, 125, 255) 8%, rgb(3, 111, 252) 10%, rgb(2, 98, 238) 14%, rgb(0, 87, 229) 20%, rgb(0, 84, 227) 24%, rgb(0, 85, 235) 56%, rgb(0, 91, 245) 66%, rgb(2, 106, 254) 76%, rgb(0, 98, 239) 86%, rgb(0, 82, 214) 92%, rgb(0, 64, 171) 94%, rgb(0, 48, 135) 100%)",
+          background: "linear-gradient(to bottom, #0058ee 0%, #3593ff 4%, #288eff 6%, #127dff 8%, #036ffc 10%, #0262ee 14%, #0057e5 20%, #0054e3 24%, #0055eb 56%, #005bf5 66%, #026afe 76%, #0062ef 86%, #0052d6 92%, #0040ab 94%, #003087 100%)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)"
         }}
       >
-        <span className="text-white text-[11px] font-bold" style={{ textShadow: "1px 1px 0px rgba(0,0,0,0.5)" }}>
-          {title}
-        </span>
-        <button
-          onClick={onClose}
-          className="hover:brightness-110 active:brightness-90"
-          title="Close"
-        >
-          <img src="/images/close.svg" alt="Close" className="w-[21px] h-[21px]" />
-        </button>
+        <div className="flex items-center gap-1">
+           {icon && <img src={icon} alt="" className="w-4 h-4" />}
+           <span className="text-white text-[13px] font-bold shadow-sm" style={{ textShadow: "1px 1px 0px rgba(0,0,0,0.5)" }}>
+            {title}
+           </span>
+        </div>
+        <div className="flex gap-1">
+            <button
+              onClick={onClose}
+              className="w-[21px] h-[21px] bg-[#d73f40] hover:bg-[#e65555] active:bg-[#b02b2c] border border-white/50 rounded-[3px] flex items-center justify-center shadow-sm"
+              title="Close"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L9 9M9 1L1 9" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+        </div>
       </div>
       {/* Content */}
-      <div className="p-4">
+      <div className="p-3">
         {children}
       </div>
     </div>
   </div>
 );
 
-// Credits Modal Content
+// Credits Modal - Standard Info Dialog
 const CreditsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <XPModal title="Credits" onClose={onClose}>
-    <div className="text-center">
-      <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-        H
-      </div>
-      <h2 className="text-lg font-bold text-[#003399] mb-2">Created by Hauwa</h2>
-      <p className="text-[11px] text-gray-600 mb-4 leading-relaxed">
-        A passionate movie lover and game developer who grew up watching classic Hollywood films
-        and dreaming of running her own studio. This game is a love letter to the golden age
-        of cinema and the magic of movie-making.
-      </p>
-      <div className="border-t border-gray-300 pt-4 mt-4">
-        <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Portfolio & Links</p>
-        <div className="flex justify-center gap-4">
-          <a href="#" className="text-[11px] text-[#003399] hover:underline">Portfolio</a>
-          <span className="text-gray-300">|</span>
-          <a href="#" className="text-[11px] text-[#003399] hover:underline">Twitter</a>
-          <span className="text-gray-300">|</span>
-          <a href="#" className="text-[11px] text-[#003399] hover:underline">LinkedIn</a>
-        </div>
-      </div>
-      <button
-        onClick={onClose}
-        className="mt-6 px-6 py-1.5 bg-[#ece9d8] border border-[#003c74] rounded-[3px] text-[11px] font-bold hover:bg-gray-100 shadow-sm"
-      >
-        OK
-      </button>
+  <XPModal title="Credits" onClose={onClose} icon={iconHelp}>
+    <div className="flex flex-col gap-4">
+       <div className="bg-white border-2 border-inset border-[#828790] p-4 h-48 overflow-y-auto font-sans leading-5 shadow-inner">
+           <p className="font-bold text-[#003399] mb-2">Hollywood Tycoon XP Team</p>
+           
+           <p className="font-bold mt-3">Concept & Design</p>
+           <p className="text-sm">Hauwa</p>
+           
+           <p className="font-bold mt-3">Lead Developer</p>
+           <p className="text-sm">Hauwa</p>
+           
+           <p className="font-bold mt-3">Special Thanks</p>
+           <p className="text-sm">The early 2000s for existing.</p>
+           
+           <div className="my-4 border-t border-gray-300"></div>
+           
+           <p className="italic text-sm">
+             "Movies touch our hearts and awaken our vision, and change the way we see things. 
+             They take us to other places. They open doors and minds. Movies are the memories of our lifetime."
+           </p>
+       </div>
+       <div className="flex justify-end">
+           <button
+             onClick={onClose}
+             className="px-6 py-1 min-w-[75px] bg-[#ece9d8] border border-[#003c74] rounded-[3px] text-[11px] hover:bg-[#f3f3f3] shadow-[inset_1px_1px_0px_#fff]"
+           >
+             OK
+           </button>
+       </div>
     </div>
   </XPModal>
 );
 
-// About Game Modal Content
-const AboutGameModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <XPModal title="About Hollywood Tycoon" onClose={onClose} width="w-[450px]">
-    <div className="flex gap-4">
-      <div className="shrink-0">
-        <img src="/images/My computer.ico" alt="Game" className="w-16 h-16" />
-      </div>
-      <div className="flex-1">
-        <h2 className="text-lg font-bold text-[#003399] mb-1">Hollywood Tycoon</h2>
-        <p className="text-[10px] text-gray-500 mb-3">Version 1.0 - Early 2000s Edition</p>
-        <p className="text-[11px] text-gray-700 leading-relaxed mb-3">
-          Build your movie empire from the ground up! Acquire scripts, hire actors,
-          manage productions, and compete for box office dominance. Navigate the
-          cutthroat world of Hollywood as you rise from indie producer to studio mogul.
-        </p>
-        <div className="bg-[#f4f4f4] border border-gray-300 p-2 rounded text-[10px] text-gray-600">
-          <strong>Features:</strong>
-          <ul className="list-disc list-inside mt-1 space-y-0.5">
-            <li>Real-time multiplayer script auctions</li>
-            <li>Dynamic actor reputation system</li>
-            <li>Production events and random encounters</li>
-            <li>Awards season with nominations</li>
-            <li>Retro Windows XP aesthetic</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-    <div className="flex justify-end mt-4">
-      <button
-        onClick={onClose}
-        className="px-6 py-1.5 bg-[#ece9d8] border border-[#003c74] rounded-[3px] text-[11px] font-bold hover:bg-gray-100 shadow-sm"
-      >
-        OK
-      </button>
+// About Game Modal - 'winver' style
+const AboutGameModal: React.FC<{ onClose: () => void; username?: string }> = ({ onClose, username = "Player" }) => (
+  <XPModal title="About Hollywood Tycoon" onClose={onClose} width="w-[410px]" icon={iconComputer}>
+    <div className="flex flex-col select-none">
+       {/* Banner */}
+       <div className="-mt-3 -mx-3 mb-4 h-16 bg-white border-b border-[#a0a0a0] flex items-center px-4 overflow-hidden relative">
+           <div className="absolute right-[-20px] top-[-10px] text-[60px] font-black text-[#ece9d8] opacity-50 italic -rotate-12">
+               XP
+           </div>
+           <div className="z-10">
+               <h1 className="text-2xl font-black italic text-[#003399] drop-shadow-sm tracking-tighter">
+                   Hollywood <span className="font-light text-[#ff6600]">Tycoon</span>
+               </h1>
+               <div className="text-[10px] font-bold text-gray-500 ml-1 -mt-1 tracking-widest uppercase">Professional Edition</div>
+           </div>
+       </div>
+       
+       <div className="px-2 text-[11px] flex flex-col gap-3">
+           <p>
+               Version 1.0 (Build 2600.xpsp_sp3_gdr)<br/>
+               Copyright © 2003 Hollywood Tycoon Corp.<br/>
+               All rights reserved.
+           </p>
+
+           <div className="bg-white border border-gray-300 p-2 h-24 overflow-y-auto">
+             <strong className="block mb-1">Installed Components:</strong>
+             <ul className="list-disc list-inside space-y-0.5 text-gray-700">
+                <li>Real-time multiplayer script auctions</li>
+                <li>Dynamic actor reputation system</li>
+                <li>Production events and random encounters</li>
+                <li>Awards season with nominations</li>
+                <li>Retro Windows XP aesthetic</li>
+             </ul>
+           </div>
+           
+           <p>
+               This product is licensed under the <a href="#" className="text-blue-600 underline cursor-pointer">End User License Agreement</a> to:
+           </p>
+           
+           <div className="pl-4 py-1">
+               <p className="font-bold">{username}</p>
+               <p>StarVision Studios</p>
+           </div>
+           
+           <div className="border-t border-[#a0a0a0] my-1"></div>
+           
+           <div className="flex gap-2 items-center">
+               <span className="text-gray-600">Physical memory available:</span>
+               <span className="font-bold">262,144 KB</span>
+           </div>
+       </div>
+
+       <div className="flex justify-end mt-4">
+          <button
+            onClick={onClose}
+            className="px-6 py-1 min-w-[75px] bg-[#ece9d8] border border-[#003c74] rounded-[3px] text-[11px] font-bold hover:bg-[#f3f3f3] shadow-[inset_1px_1px_0px_#fff]"
+          >
+            OK
+          </button>
+       </div>
     </div>
   </XPModal>
 );
 
-// My Profile Modal Content
+// My Profile Modal - 'User Accounts' style
 const MyProfileModal: React.FC<{
   onClose: () => void;
   username: string;
   userAvatar?: string;
-}> = ({ onClose, username, userAvatar }) => {
-  const [displayName, setDisplayName] = useState(username);
+  onSaveProfile: (name: string, avatar: string) => Promise<void>;
+}> = ({ onClose, username, userAvatar, onSaveProfile }) => {
+  const [view, setView] = useState<'menu' | 'name' | 'picture'>('menu');
+  const [newName, setNewName] = useState(username);
+  const [newAvatar, setNewAvatar] = useState(userAvatar || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    await onSaveProfile(newName, newAvatar);
+    setIsSaving(false);
+    setView('menu');
+  };
 
   return (
-    <XPModal title="My Profile" onClose={onClose} width="w-[380px]">
-      <div className="space-y-4">
-        {/* Avatar Section */}
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded border-2 border-[#003399] overflow-hidden bg-gray-200">
-            {userAvatar ? (
-              <img src={userAvatar} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600" />
-            )}
-          </div>
-          <div className="flex-1">
-            <p className="text-[10px] text-gray-500 uppercase mb-1">Studio Executive</p>
-            <p className="text-sm font-bold text-[#003399]">{username}</p>
-          </div>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-[1px] font-tahoma">
+      {/* Full "User Accounts" Window Replica */}
+      <div className="w-[600px] h-[450px] bg-white border border-[#0055e5] rounded-lg shadow-2xl flex flex-col overflow-hidden">
+        {/* Top Gradient Bar */}
+        <div className="h-[50px] bg-[#0055e5] flex items-center justify-between px-4 shrink-0 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-[#53a3ff] opacity-50"></div>
+            <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+            
+            <div className="flex items-center gap-2 z-10">
+                <button onClick={() => setView('menu')} className={`flex items-center gap-1 text-white hover:bg-white/10 px-2 py-1 rounded transition-colors group ${view === 'menu' ? 'opacity-50 cursor-default' : ''}`}>
+                    <div className="w-5 h-5 rounded-full bg-[#1b7e05] border border-[#52bd3b] flex items-center justify-center shadow-sm group-hover:bg-[#239908]">
+                        <svg className="w-3 h-3 text-white -rotate-180" viewBox="0 0 24 24" fill="currentColor">
+                           <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                    <span className="text-[12px] font-bold">Back</span>
+                </button>
+                <button onClick={onClose} className="flex items-center gap-1 text-white hover:bg-white/10 px-2 py-1 rounded transition-colors group">
+                    <div className="w-5 h-5 rounded-full bg-[#1b7e05] border border-[#52bd3b] flex items-center justify-center shadow-sm group-hover:bg-[#239908]">
+                        <img src={iconInternet} className="w-3 h-3" alt="" />
+                    </div>
+                    <span className="text-[12px] font-bold">Home</span>
+                </button>
+            </div>
+            
+            <div className="text-white text-xl font-bold italic tracking-tight opacity-90 z-10">
+                User Accounts
+            </div>
         </div>
 
-        {/* Form Fields */}
-        <div className="space-y-3">
-          <div>
-            <label className="block text-[10px] text-gray-600 uppercase mb-1">Display Name</label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full border-2 border-gray-400 px-2 py-1 text-[11px] focus:border-[#003399] outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] text-gray-600 uppercase mb-1">Email</label>
-            <input
-              type="email"
-              disabled
-              placeholder="email@example.com"
-              className="w-full border-2 border-gray-300 px-2 py-1 text-[11px] bg-gray-100 text-gray-500"
-            />
-            <p className="text-[9px] text-gray-400 mt-0.5">Contact support to change email</p>
-          </div>
-        </div>
+        {/* Content Area */}
+        <div className="flex flex-1 overflow-hidden">
+            {/* Sidebar "Related Tasks" */}
+            <div className="w-[180px] bg-[#6487dc] p-3 flex flex-col gap-4 text-white">
+                <div className="bg-white/0 rounded">
+                    <div className="flex items-center gap-2 mb-2 font-bold text-[11px]">
+                        <div className="w-4 h-4 bg-white/20 rounded flex items-center justify-center">?</div>
+                        Related Tasks
+                    </div>
+                    <ul className="space-y-1 pl-6 text-[11px] text-white/90">
+                        <li className="hover:underline cursor-pointer">Manage my network passwords</li>
+                        <li className="hover:underline cursor-pointer">Prevents a forgotten password</li>
+                        <li className="hover:underline cursor-pointer">Change another account</li>
+                        <li className="hover:underline cursor-pointer">Create a new account</li>
+                    </ul>
+                </div>
+                
+                 <div className="bg-white/0 rounded mt-auto">
+                    <div className="flex items-center gap-2 mb-2 font-bold text-[11px]">
+                         <span className="text-green-300">Learn About</span>
+                    </div>
+                     <ul className="space-y-1 pl-6 text-[11px] text-white/90">
+                        <li className="hover:underline cursor-pointer">User accounts</li>
+                        <li className="hover:underline cursor-pointer">Account types</li>
+                        <li className="hover:underline cursor-pointer">Switching users</li>
+                    </ul>
+                </div>
+            </div>
 
-        {/* Buttons */}
-        <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-[#ece9d8] border border-[#808080] rounded-[3px] text-[11px] hover:bg-gray-100 shadow-sm"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-[#ece9d8] border border-[#003c74] rounded-[3px] text-[11px] font-bold hover:bg-gray-100 shadow-sm"
-          >
-            Save Changes
-          </button>
+            {/* Main Content */}
+            <div className="flex-1 bg-white p-6 relative">
+                 {/* VIEW: MENU */}
+                 {view === 'menu' && (
+                   <>
+                     <h2 className="text-[#003399] text-[15px] font-medium mb-6">
+                        Changes for <span className="font-bold">{username}</span>'s account
+                     </h2>
+
+                     <div className="flex gap-4 mb-6">
+                         <div className="w-[100px] text-center">
+                             <div className="w-[80px] h-[80px] mx-auto bg-gray-200 border-[3px] border-[#fbce5e] rounded-[4px] shadow-sm overflow-hidden mb-2 relative">
+                                 {userAvatar ? (
+                                    <img src={userAvatar} className="w-full h-full object-cover" alt="" />
+                                 ) : (
+                                    <div className="w-full h-full bg-blue-100 flex items-center justify-center text-3xl">♟️</div>
+                                 )}
+                                <div className="absolute inset-0 shadow-[inset_0_0_10px_rgba(0,0,0,0.1)]"></div>
+                             </div>
+                         </div>
+                         <div className="flex-1">
+                             <div className="flex flex-col gap-1">
+                                 <button onClick={() => setView('name')} className="text-left px-2 py-1 text-[11px] text-[#003399] hover:bg-[#ebf4ff] hover:underline rounded flex items-center gap-2 group">
+                                     <span className="w-1 h-1 bg-[#003399] rounded-full group-hover:scale-125 transition-transform"></span>
+                                     Change my name
+                                 </button>
+                                 <button onClick={() => setView('picture')} className="text-left px-2 py-1 text-[11px] text-[#003399] hover:bg-[#ebf4ff] hover:underline rounded flex items-center gap-2 group">
+                                     <span className="w-1 h-1 bg-[#003399] rounded-full group-hover:scale-125 transition-transform"></span>
+                                     Change my picture
+                                 </button>
+                                 <button className="text-left px-2 py-1 text-[11px] text-[#003399] hover:bg-[#ebf4ff] hover:underline rounded flex items-center gap-2 group opacity-50 cursor-not-allowed">
+                                     <span className="w-1 h-1 bg-[#003399] rounded-full group-hover:scale-125 transition-transform"></span>
+                                     Change my password
+                                 </button>
+                                 <button className="text-left px-2 py-1 text-[11px] text-[#003399] hover:bg-[#ebf4ff] hover:underline rounded flex items-center gap-2 group opacity-50 cursor-not-allowed">
+                                     <span className="w-1 h-1 bg-[#003399] rounded-full group-hover:scale-125 transition-transform"></span>
+                                     Set up my account to use a .NET Passport
+                                 </button>
+                             </div>
+                         </div>
+                     </div>
+                   </>
+                 )}
+
+                 {/* VIEW: CHANGE NAME */}
+                 {view === 'name' && (
+                   <div className="animate-in fade-in duration-200">
+                     <h2 className="text-[#003399] text-[15px] font-medium mb-4">
+                        Type a new name for <span className="font-bold">{username}</span>.
+                     </h2>
+                     <p className="text-[11px] text-gray-700 mb-4">
+                        Type the name you want to use in the game. This name will appear on the Start menu and in the Studio Manager.
+                     </p>
+                     
+                     <input 
+                        type="text" 
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        className="w-full max-w-sm border border-[#003399] rounded-[2px] px-2 py-1 text-[12px] mb-6 shadow-inner outline-none focus:ring-1 focus:ring-[#003399]"
+                        autoFocus
+                     />
+
+                     <div className="flex gap-2">
+                        <button 
+                          onClick={handleSave}
+                          disabled={isSaving}
+                          className="px-4 py-1 bg-[#ece9d8] border border-[#003c74] rounded-[3px] text-[11px] font-bold hover:bg-[#f3f3f3] shadow-sm disabled:opacity-50"
+                        >
+                          {isSaving ? 'Saving...' : 'Change Name'}
+                        </button>
+                        <button 
+                          onClick={() => setView('menu')}
+                          className="px-4 py-1 bg-[#ece9d8] border border-[#808080] rounded-[3px] text-[11px] hover:bg-[#f3f3f3] shadow-sm"
+                        >
+                          Cancel
+                        </button>
+                     </div>
+                   </div>
+                 )}
+
+                 {/* VIEW: CHANGE PICTURE */}
+                 {view === 'picture' && (
+                   <div className="animate-in fade-in duration-200">
+                     <h2 className="text-[#003399] text-[15px] font-medium mb-4">
+                        Pick a new picture for <span className="font-bold">{username}</span>'s account.
+                     </h2>
+                     <p className="text-[11px] text-gray-700 mb-4">
+                        The picture you choose will appear on the Welcome screen and on the Start menu.
+                     </p>
+                     
+                     <div className="h-48 overflow-y-auto border border-[#7f9db9] bg-white p-2 mb-4 grid grid-cols-5 gap-2">
+                        {[
+                          "/images/random-avatar-1.png",
+                          "/images/random-avatar-2.png",
+                          "/images/random-avatar-3.png",
+                          "/images/My computer.ico",
+                          "/images/internetexplorer.svg",
+                          "/images/mail:message.svg",
+                          "/images/3d588ce8e469ecee21d24fcd281ee392f4046a27.png" // Messenger icon
+                        ].map((src, i) => (
+                           <div 
+                              key={i}
+                              onClick={() => setNewAvatar(src)}
+                              className={`aspect-square flex items-center justify-center p-2 border hover:bg-blue-50 cursor-pointer rounded-sm ${newAvatar === src ? 'border-[#0055e5] bg-blue-100 ring-1 ring-[#0055e5]' : 'border-transparent'}`}
+                           >
+                              <img src={src} className="w-10 h-10 object-contain" alt="Avatar option" />
+                           </div>
+                        ))}
+                     </div>
+                     
+                     <div className="flex flex-col gap-2 mb-6">
+                        <p className="text-[11px] text-gray-600">Or enter an image URL:</p>
+                        <input 
+                          type="text" 
+                          placeholder="https://..."
+                          value={newAvatar}
+                          onChange={(e) => setNewAvatar(e.target.value)}
+                          className="w-full border border-[#7f9db9] rounded-[2px] px-2 py-1 text-[11px] outline-none focus:border-[#003399]"
+                        />
+                     </div>
+
+                     <div className="flex gap-2">
+                        <button 
+                          onClick={handleSave}
+                          disabled={isSaving}
+                          className="px-4 py-1 bg-[#ece9d8] border border-[#003c74] rounded-[3px] text-[11px] font-bold hover:bg-[#f3f3f3] shadow-sm disabled:opacity-50"
+                        >
+                          {isSaving ? 'Saving...' : 'Change Picture'}
+                        </button>
+                        <button 
+                          onClick={() => setView('menu')}
+                          className="px-4 py-1 bg-[#ece9d8] border border-[#808080] rounded-[3px] text-[11px] hover:bg-[#f3f3f3] shadow-sm"
+                        >
+                          Cancel
+                        </button>
+                     </div>
+                   </div>
+                 )}
+            </div>
         </div>
       </div>
-    </XPModal>
+    </div>
   );
 };
 
@@ -196,6 +388,7 @@ interface StartMenuProps {
   username?: string;
   userAvatar?: string;
   onLogOff?: () => void;
+  onSaveProfile: (name: string, avatar: string) => Promise<void>;
 }
 
 interface ProgramItem {
@@ -218,6 +411,7 @@ export const StartMenu: React.FC<StartMenuProps> = ({
   username = "Player",
   userAvatar,
   onLogOff,
+  onSaveProfile,
 }) => {
   // Modal states
   const [showCredits, setShowCredits] = useState(false);
@@ -247,12 +441,13 @@ export const StartMenu: React.FC<StartMenuProps> = ({
     <>
       {/* Modals - always rendered so they can show even when menu is closed */}
       {showCredits && <CreditsModal onClose={() => setShowCredits(false)} />}
-      {showAboutGame && <AboutGameModal onClose={() => setShowAboutGame(false)} />}
+      {showAboutGame && <AboutGameModal onClose={() => setShowAboutGame(false)} username={username} />}
       {showMyProfile && (
         <MyProfileModal
           onClose={() => setShowMyProfile(false)}
           username={username}
           userAvatar={userAvatar}
+          onSaveProfile={onSaveProfile}
         />
       )}
 

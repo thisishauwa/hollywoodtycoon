@@ -34,7 +34,7 @@ import { useStudios } from "./hooks/useStudios";
 import { useGameState } from "./hooks/useGameState";
 import { useOwnedScripts } from "./hooks/useOwnedScripts";
 import { useEvents } from "./hooks/useEvents";
-import { useGlobalClock } from "./hooks/useGlobalClock";
+import { useGlobalClockContext } from "./contexts/GlobalClockContext";
 import { useProjects } from "./hooks/useProjects";
 import { useAwards } from "./hooks/useAwards";
 import { supabase } from "./lib/supabase";
@@ -54,49 +54,50 @@ interface WindowState {
   zIndex: number;
 }
 
+// Mobile detection component - separate to avoid hook issues
+const MobileBlocker: React.FC = () => (
+  <div className="fixed inset-0 bg-[#245edb] z-[9999] flex flex-col items-center justify-center p-8 text-center font-sans select-none">
+    <img
+      src="/images/My computer.ico"
+      alt="My Computer"
+      className="w-24 h-24 mb-6 drop-shadow-md"
+    />
+    <h1 className="text-white text-2xl font-bold mb-3 drop-shadow-sm" style={{ fontFamily: 'Tahoma, sans-serif' }}>
+      Desktop Experience Only
+    </h1>
+    <p className="text-white text-sm max-w-xs leading-relaxed opacity-90" style={{ fontFamily: 'Tahoma, sans-serif' }}>
+      Hollywood Tycoon XP uses a sophisticated window management system designed for desktop computers.
+    </p>
+    <div className="mt-8 bg-white/10 rounded px-4 py-2 border border-white/20">
+      <p className="text-white/80 text-xs">Please return on a PC or Mac.</p>
+    </div>
+  </div>
+);
+
 const App: React.FC = () => {
   const { user, profile, loading, signIn, signUp, signOut } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+
+  // Mobile detection - check immediately on mount (before useState default)
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768
+  );
 
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
-    checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  if (isMobile) {
-    return (
-      <div className="fixed inset-0 bg-[#245edb] z-[9999] flex flex-col items-center justify-center p-8 text-center font-sans select-none">
-         <img 
-           src="/images/My computer.ico" 
-           alt="My Computer" 
-           className="w-24 h-24 mb-6 drop-shadow-md"
-         />
-         <h1 className="text-white text-2xl font-bold mb-3 drop-shadow-sm" style={{ fontFamily: 'Tahoma, sans-serif' }}>
-           Desktop Experience Only
-         </h1>
-         <p className="text-white text-sm max-w-xs leading-relaxed opacity-90" style={{ fontFamily: 'Tahoma, sans-serif' }}>
-           Hollywood Tycoon XP uses a sophisticated window management system designed for desktop computers.
-         </p>
-         <div className="mt-8 bg-white/10 rounded px-4 py-2 border border-white/20">
-           <p className="text-white/80 text-xs">Please return on a PC or Mac.</p>
-         </div>
-      </div>
-    );
-  }
 
   // Multiplayer hooks
   const { gameState: multiplayerGameState, loading: gameStateLoading, updateBalance } =
     useGameState();
   const { ownedScripts: multiplayerOwnedScripts, loading: ownedScriptsLoading } = useOwnedScripts();
   const { events: multiplayerEvents } = useEvents();
-  const { clock, getMonthName } = useGlobalClock();
+  const { clock, getMonthName } = useGlobalClockContext();
   const { studios: realStudios, loading: studiosLoading } = useStudios(
     user?.id,
     clock?.year
@@ -288,16 +289,23 @@ const App: React.FC = () => {
     multiplayerGameState?.year,
   ]);
 
-  // Sync global clock to gameState.month/year (DEPRECATED - now using multiplayerGameState)
+  // Sync global clock to gameState.month/year
   useEffect(() => {
     if (clock) {
-      setGameState((prev) => ({
-        ...prev,
-        month: clock.month,
-        year: clock.year,
-      }));
+      setGameState((prev) => {
+        // Only update if actually changed to prevent unnecessary re-renders
+        if (prev.month !== clock.month || prev.year !== clock.year) {
+          console.log(`[Clock Sync] Updating gameState: ${prev.month}/${prev.year} -> ${clock.month}/${clock.year}`);
+          return {
+            ...prev,
+            month: clock.month,
+            year: clock.year,
+          };
+        }
+        return prev;
+      });
     }
-  }, [clock?.month, clock?.year]);
+  }, [clock]); // Depend on clock object itself, not just properties
 
   // Auto-close expired auctions every 30 seconds
   useEffect(() => {
@@ -345,18 +353,29 @@ const App: React.FC = () => {
       }
     };
 
-    // Check immediately on mount
-    checkAndAdvanceClock();
-
-    // Then check every 30 seconds (to catch 2-minute game months)
-    const interval = setInterval(checkAndAdvanceClock, 30 * 1000);
-
-    return () => clearInterval(interval);
+    // Auto-advance is now handled server-side to prevent client-sync issues
+    // const interval = setInterval(checkAndAdvanceClock, 30 * 1000);
+    // return () => clearInterval(interval);
   }, [user]);
+
+  // Track if this is the initial load (to skip event generation on refresh)
+  const isInitialClockLoad = useRef(true);
 
   // Process actor lifecycle events when global clock changes
   useEffect(() => {
     if (!clock || !user) return;
+
+    // On initial page load, just record the current time without generating events
+    // This prevents duplicate/confusing events on refresh
+    if (isInitialClockLoad.current) {
+      console.log(`[WorldEvents] Initial load - recording clock at ${clock.month}/${clock.year}, skipping event generation`);
+      lastProcessedTime.current = {
+        month: clock.month,
+        year: clock.year,
+      };
+      isInitialClockLoad.current = false;
+      return;
+    }
 
     // Skip if this month/year was already processed
     if (
@@ -367,19 +386,24 @@ const App: React.FC = () => {
       return;
     }
 
-    const processWorldEvents = async () => {
-      try {
-        // Mark as processed FIRST to prevent infinite re-runs
-        lastProcessedTime.current = {
-          month: clock.month,
-          year: clock.year,
-        };
+    console.log(`[WorldEvents] Clock advanced from ${lastProcessedTime.current?.month}/${lastProcessedTime.current?.year} to ${clock.month}/${clock.year} - generating events`);
 
-        // Import services dynamically
-        const { processActorLifecycle, updateActorTiers } = await import(
-          "./services/actorLifecycle"
+    console.log(`[WorldEvents] Clock advanced from ${lastProcessedTime.current?.month}/${lastProcessedTime.current?.year} to ${clock.month}/${clock.year} - generating events`);
+
+    const processWorldEventsForMonth = async (targetMonth: number, targetYear: number) => {
+      try {
+        console.log(`[WorldEvents] Processing events for ${targetMonth}/${targetYear}`);
+        
+        // Import NEW event services
+        const { generateMonthlyEvents, applyMonthlyEventImpacts } = await import(
+          "./services/monthlyEventsService"
         );
-        const { generateRandomEvent } = await import("./services/geminiService");
+        const { generateActorLifecycleEvents, applyActorLifecycleEvent, tickActorCooldowns } = await import(
+          "./services/actorLifecycleEventsService"
+        );
+        const { formatEventForVariety } = await import(
+          "./services/eventFormattingService"
+        );
         const { 
            shouldAnnounceNominations, 
            generateAwardsCeremony, 
@@ -388,52 +412,75 @@ const App: React.FC = () => {
            applyAwardEffects 
         } = await import("./services/awardsService");
 
-        // 1. Actor Lifecycle Events
-        const { updatedActors, events: lifecycleEvents } = processActorLifecycle(
-          gameState.actors,
-          clock.month
-        );
-        let tieredActors = updateActorTiers(updatedActors);
-
-        // Map lifecycle event types to game event types for Variety
-        const mapLifecycleToGameEventType = (type: string): string => {
-          const goodEvents = ['marriage', 'comeback', 'award_nomination', 'award_win', 'breakout_role', 'rehab', 'reconciliation'];
-          const badEvents = ['death', 'scandal', 'divorce', 'career_slump', 'personal_issues', 'feud'];
-          if (goodEvents.includes(type)) return 'GOOD';
-          if (badEvents.includes(type)) return 'BAD';
-          return 'GOSSIP';
-        };
-
-        // Convert lifecycle events to game events (filter out silent aging events)
-        let newEvents: any[] = lifecycleEvents
-          .filter(e => e.message && e.message.trim()) // Filter out silent events like aging
-          .map(e => ({
-            id: e.id,
-            month: e.month,
-            type: mapLifecycleToGameEventType(e.type),
-            message: `GOSSIP: ${e.message}`,
-            read: false
-          }));
-        
-        // 2. Random Flavor Gossip
-        if (Math.random() > 0.3) {
-           const headline = await generateRandomEvent(clock.year, gameState.actors);
-           newEvents.push({
-             id: uuid(),
-             month: clock.month,
-             type: "GOSSIP",
-             message: headline,
-             read: false,
-           });
-        }
-
-        // 3. Awards Season
+        let newEvents: any[] = [];
+        let balanceChange = 0;
         let reputationChange = 0;
 
+        // 1. MONTHLY MARKET EVENTS (2 good + 2 bad)
+        const { good: goodMarketEvents, bad: badMarketEvents } = generateMonthlyEvents(targetMonth, targetYear);
+        const allMarketEvents = [...goodMarketEvents, ...badMarketEvents];
+        
+        // Apply market event impacts
+        const marketImpacts = applyMonthlyEventImpacts(
+          allMarketEvents,
+          gameState.balance,
+          gameState.reputation
+        );
+        
+        balanceChange += (marketImpacts.newBalance - gameState.balance);
+        reputationChange += (marketImpacts.newReputation - gameState.reputation);
+        
+        // Store multipliers for this month (would be used in production/release calculations)
+        // TODO: Apply these to ongoing productions and releases
+        console.log('[Market Multipliers]', {
+          revenue: marketImpacts.revenueMultiplier,
+          production: marketImpacts.productionCostMultiplier,
+          hiring: marketImpacts.hiringCostMultiplier,
+        });
+        
+        // Format market events for display
+        for (const event of allMarketEvents) {
+          const formatted = formatEventForVariety(event, 'market', targetMonth, targetYear);
+          newEvents.push({
+            id: formatted.id,
+            month: targetMonth,
+            type: formatted.type.toUpperCase(),
+            message: formatted.headline,
+            read: false,
+          });
+        }
+
+        // 2. ACTOR LIFECYCLE EVENTS (2-3 significant events)
+        const lifecycleEvents = generateActorLifecycleEvents(gameState.actors, 3);
+        let updatedActors = [...gameState.actors];
+        
+        for (const event of lifecycleEvents) {
+          // Find and update the actor
+          const actorIndex = updatedActors.findIndex(a => a.id === event.actorId);
+          if (actorIndex !== -1) {
+            updatedActors[actorIndex] = applyActorLifecycleEvent(updatedActors[actorIndex], event);
+            
+            // Format for Variety
+            const formatted = formatEventForVariety(event, 'actor', targetMonth, targetYear);
+            newEvents.push({
+              id: formatted.id,
+              month: targetMonth,
+              type: formatted.type.toUpperCase(),
+              message: formatted.headline,
+              read: false,
+            });
+          }
+        }
+        
+        // Tick actor cooldowns for next month
+        tickActorCooldowns(updatedActors.map(a => a.id));
+
+        // 3. AWARDS SEASON
         // Jan: Nominations
-        if (shouldAnnounceNominations(clock.month)) {
-           const prevYear = clock.year - 1;
-           if (!dbCeremonies.find(c => c.year === prevYear)) {
+        if (shouldAnnounceNominations(targetMonth)) {
+           const prevYear = targetYear - 1;
+           // Only run if the previous year was actually playable/valid (>= START_YEAR)
+           if (prevYear >= START_YEAR && !dbCeremonies.find(c => c.year === prevYear)) {
                const ceremony = generateAwardsCeremony(gameState, prevYear);
                if (ceremony) {
                    // Save to database
@@ -441,7 +488,7 @@ const App: React.FC = () => {
                    const playerNoms = ceremony.nominations.filter(n => n.studioId === 'player').length;
                    newEvents.push({
                        id: uuid(),
-                       month: clock.month,
+                       month: targetMonth,
                        type: playerNoms > 0 ? 'GOOD' : 'INFO',
                        message: `AWARDS: ${prevYear} Academy Award nominations announced! ` + 
                                 (playerNoms > 0 ? `You received ${playerNoms} nomination(s).` : `No nominations for your studio.`),
@@ -452,8 +499,8 @@ const App: React.FC = () => {
         }
 
         // Feb: Ceremony
-        if (shouldHoldCeremony(clock.month)) {
-            const prevYear = clock.year - 1;
+        if (shouldHoldCeremony(targetMonth)) {
+            const prevYear = targetYear - 1;
             const ceremony = dbCeremonies.find(c => c.year === prevYear && !c.completed);
             if (ceremony) {
                 const completed = determineWinners(ceremony);
@@ -473,35 +520,10 @@ const App: React.FC = () => {
             }
         }
 
-        // 4. Rival Activity (Simulated)
-        if (clock.month % 2 === 0) { // Every other month
-            const activeRivals = gameState.rivals
-                .filter(r => r.name !== gameState.studioName) // Exclude player studio
-                .sort(() => 0.5 - Math.random())
-                .slice(0, 2); // 2 random rivals do something
-            
-            for (const rival of activeRivals) {
-                const actionType = Math.random() > 0.5 ? 'release' : 'scandal';
-                if (actionType === 'release') {
-                    const gross = 15 + Math.floor(Math.random() * 80);
-                    newEvents.push({
-                        id: uuid(),
-                        month: clock.month,
-                        type: 'INFO',
-                        message: `BOX OFFICE: ${rival.name} releases new blockbuster. Analysts estimate $${gross}M opening weekend.`,
-                        read: false,
-                    });
-                } else {
-                     newEvents.push({
-                        id: uuid(),
-                        month: clock.month,
-                        type: 'GOSSIP',
-                        message: `RUMOR: Insiders say ${rival.name} is facing production hell on their latest project.`,
-                        read: false,
-                    });
-                }
-            }
-        }
+
+        // 4. NO MORE RIVAL ACTIVITY OR RANDOM AI GOSSIP
+        // Pure, trackable events only!
+
 
         // Transform events for DB
         const dbEvents = newEvents.map(e => ({
@@ -509,8 +531,8 @@ const App: React.FC = () => {
             event_type: e.type.toLowerCase() === 'gossip' ? 'gossip' : e.type, 
             title: e.type,
             description: e.message,
-            month: clock.month,
-            year: clock.year,
+            month: targetMonth,
+            year: targetYear,
             is_read: false
         }));
 
@@ -519,16 +541,17 @@ const App: React.FC = () => {
             await supabase.from("game_events").insert(dbEvents);
         }
 
-        // UPDATE Local State
+        // UPDATE Local State - Now with balance and reputation changes!
         setGameState(prev => ({
             ...prev,
-            actors: tieredActors,
+            actors: updatedActors,
+            balance: prev.balance + balanceChange,
             reputation: prev.reputation + reputationChange,
             events: [...prev.events, ...newEvents.map(e => ({...e, read: false}))]
         }));
         
         // Sync Actors to DB (Critical for persistence)
-         const changedActors = tieredActors.filter(newActor => {
+         const changedActors = updatedActors.filter(newActor => {
             const oldActor = gameState.actors.find(a => a.id === newActor.id);
             if (!oldActor) return false;
             return (
@@ -561,12 +584,57 @@ const App: React.FC = () => {
       }
     };
 
-    processWorldEvents();
-  }, [clock?.month, clock?.year, user]); // Trigger when month/year changes
+    const processMissingMonths = async () => {
+      if (!lastProcessedTime.current) return;
+
+      let currentMonth = lastProcessedTime.current.month;
+      let currentYear = lastProcessedTime.current.year;
+      let monthsProcessed = 0;
+
+      // Loop until we catch up to the current clock
+      // Safety limit of 12 months to prevent infinite loops/hangs if client is very far behind
+      while (
+        (currentYear < clock.year || (currentYear === clock.year && currentMonth < clock.month)) && 
+        monthsProcessed < 12
+      ) {
+        // Increment month logic
+        currentMonth++;
+        if (currentMonth > 12) {
+            currentMonth = 1;
+            currentYear++;
+        }
+        
+        await processWorldEventsForMonth(currentMonth, currentYear);
+        
+        // Update tracker immediately after processing
+        lastProcessedTime.current = {
+            month: currentMonth,
+            year: currentYear
+        };
+        monthsProcessed++;
+      }
+    };
+
+    processMissingMonths();
+  }, [clock, user, gameState.actors]); // Trigger when clock changes
+
+  // Track if this is the initial load for production (to skip processing on refresh)
+  const isInitialProductionLoad = useRef(true);
 
   // Process production advancement when global clock changes
   useEffect(() => {
     if (!clock || !user) return;
+
+    // On initial page load, just record the time without processing
+    if (isInitialProductionLoad.current) {
+      console.log(`[Production] Initial load - recording clock at ${clock.month}/${clock.year}`);
+      lastProductionProcessedTime.current = {
+        month: clock.month,
+        year: clock.year,
+      };
+      isInitialProductionLoad.current = false;
+      return;
+    }
 
     // Skip if this month/year was already processed for production
     if (
@@ -576,6 +644,8 @@ const App: React.FC = () => {
     ) {
       return;
     }
+
+    console.log(`[Production] Clock advanced to ${clock.month}/${clock.year} - processing production`);
 
     const processProductionAdvancement = async () => {
       try {
@@ -815,8 +885,7 @@ const App: React.FC = () => {
 
     processProductionAdvancement();
   }, [
-    clock?.month,
-    clock?.year,
+    clock,
     user,
     gameState.projects,
     gameState.actors,
@@ -889,6 +958,11 @@ const App: React.FC = () => {
 
     prevOwnedScriptIds.current = currentIds;
   }, [multiplayerOwnedScripts, ownedScriptsLoading, user, clock?.month, clock?.year, notifications]);
+
+  // Show mobile blocker if on mobile device
+  if (isMobile) {
+    return <MobileBlocker />;
+  }
 
   // Show loading state while checking auth
   if (loading) {
@@ -1033,16 +1107,27 @@ const App: React.FC = () => {
             id: uuid(),
             month: prev.month,
             type: "GOOD",
-            message: `AUCTION WON: Rights to "${
-              script.title
-            }" secured for $${script.currentBid.toLocaleString()}!`,
+            message: `ACQUISITION: Rights to "${script.title}" secured for $${script.currentBid.toLocaleString()}!`,
             read: false,
           };
+
+          // Save to database for Variety
+          supabase.from("game_events").insert({
+            user_id: user.id,
+            event_type: 'good',
+            title: 'GOOD',
+            description: `ACQUISITION: Rights to "${script.title}" secured for $${script.currentBid.toLocaleString()}!`,
+            month: clock.month,
+            year: clock.year,
+            is_read: false
+          });
+
+          // NOTE: Removed notification - auction results shown in Variety feed only
 
           return {
             ...prev,
             balance: prev.balance - script.currentBid,
-            ownedScripts: [...prev.ownedScripts, script],
+            // ownedScripts managed by useOwnedScripts hook via DB subscription
             marketScripts: prev.marketScripts.filter((s) => s.id !== scriptId),
             events: [...prev.events, wonEvent],
           };
@@ -1260,6 +1345,27 @@ const App: React.FC = () => {
     setActiveTab("dashboard");
   };
 
+  const handleSaveProfile = async (name: string, avatar: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: name }) // Note: avatar_url might need to be added to profile schema if not present, but using username first
+        .eq('id', user.id);
+
+      // Also update metadata if needed, but profile table is primary source for game state
+      
+      if (error) throw error;
+      
+      // Force reload to refresh context/state for now (simplest way to ensure all components update)
+      window.location.reload();
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      alert("Failed to update profile via 'User Accounts' settings.");
+    }
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden relative">
       {isLoading && (
@@ -1376,7 +1482,6 @@ const App: React.FC = () => {
 
         {windows.news.isOpen && !windows.news.isMinimized && (
           <MagazineWindow
-            events={multiplayerEvents}
             state={gameState}
             onClose={() => closeWindow("news")}
             onMinimize={() => toggleWindowMinimize("news")}
@@ -1420,7 +1525,7 @@ const App: React.FC = () => {
           `$${(gameState.balance / 1000).toFixed(0)}K`,
           `${gameState.reputation}% Rep`,
            clock
-            ? `${getMonthName().slice(0, 3)}`
+            ? `${getMonthName(clock.month).slice(0, 3)}`
             : `Q${Math.ceil(gameState.month / 3)}`,
         ]}
         activeWindows={taskbarItems}

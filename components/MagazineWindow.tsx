@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { GameEvent, GameState } from '../types';
 import { WindowFrame } from './RetroUI';
 import { useAuth } from '../contexts/AuthContext';
-import { useGlobalClock } from '../hooks/useGlobalClock';
+import { useGlobalClockContext } from '../contexts/GlobalClockContext';
+import { useEvents } from '../hooks/useEvents';
 
 interface Props {
-  events: GameEvent[];
   state: GameState;
   onClose: () => void;
   onMinimize: () => void;
@@ -30,11 +30,10 @@ const formatDate = (month: number): string => {
   return `${months[month - 1].toUpperCase()}`;
 };
 
-
-
-export const MagazineWindow: React.FC<Props> = ({ events, state, onClose, onMinimize, isActive, zIndex, onFocus }) => {
+export const MagazineWindow: React.FC<Props> = ({ state, onClose, onMinimize, isActive, zIndex, onFocus }) => {
   const { user } = useAuth();
-  const { clock } = useGlobalClock();
+  const { clock } = useGlobalClockContext();
+  const { events } = useEvents();
   const [activeCategory, setActiveCategory] = useState<NewsCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
 

@@ -63,11 +63,6 @@ SET
     industry_clout = 30,
     updated_at = NOW();
 
--- 6. Clear any studio balances if using studios table
-UPDATE studios
-SET balance = 5000000
-WHERE true;
-
 COMMIT;
 
 -- =====================================================
