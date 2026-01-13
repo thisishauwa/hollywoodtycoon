@@ -1484,7 +1484,10 @@ const App: React.FC = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ username: name })
+        .update({ 
+          username: name,
+          avatar_url: avatar 
+        })
         .eq('id', user.id);
 
       if (error) throw error;

@@ -177,7 +177,7 @@ const MyProfileModal: React.FC<{
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-[1px] font-tahoma">
       {/* Full "User Accounts" Window Replica */}
-      <div className="w-[600px] h-[450px] bg-white border border-[#0055e5] rounded-lg shadow-2xl flex flex-col overflow-hidden">
+      <div className="w-[600px] h-[550px] bg-white border border-[#0055e5] rounded-lg shadow-2xl flex flex-col overflow-hidden">
         {/* Top Gradient Bar */}
         <div className="h-[50px] bg-[#0055e5] flex items-center justify-between px-4 shrink-0 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-[#53a3ff] opacity-50"></div>
@@ -235,7 +235,7 @@ const MyProfileModal: React.FC<{
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 bg-white p-6 relative">
+            <div className="flex-1 bg-white p-6 relative overflow-y-auto">
                  {/* VIEW: MENU */}
                  {view === 'menu' && (
                    <>
