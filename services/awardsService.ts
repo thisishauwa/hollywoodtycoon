@@ -173,18 +173,26 @@ export const applyAwardEffects = async (
 
   const winners = ceremony.nominations.filter(n => n.isWinner);
 
+  // Generate GLOBAL events for major award winners (visible to all)
+  const majorAwards = [AwardCategory.BestPicture, AwardCategory.BestActor, AwardCategory.BestActress];
+
   for (const winner of winners) {
-    // Studio reputation boost
+    // Studio reputation boost (only for player)
     if (winner.studioId === 'player') {
       const reputationBoost = winner.category === AwardCategory.BestPicture ? 15 : 5;
       newState.reputation = Math.min(100, newState.reputation + reputationBoost);
+    }
 
+    // Generate global event for major awards (all studios see these)
+    if (majorAwards.includes(winner.category as AwardCategory)) {
+      const studioLabel = winner.studioId === 'player' ? state.studioName : 'A rival studio';
       events.push({
         id: uuid(),
         month: newState.month,
         type: 'GOOD',
-        message: `AWARDS: "${winner.movieTitle}" wins ${winner.category}! ${winner.actorName ? `(${winner.actorName})` : ''} +${reputationBoost} reputation`,
+        message: `AWARDS: "${winner.movieTitle}" (${studioLabel}) wins ${winner.category}! ${winner.actorName ? `Performance by ${winner.actorName}.` : ''}`,
         read: false,
+        isGlobal: true, // Visible to all players
       });
     }
 
@@ -194,7 +202,7 @@ export const applyAwardEffects = async (
       if (actorIdx !== -1) {
         const skillBoost = 5 + Math.floor(Math.random() * 5);
         const salaryMultiplier = 1.3 + (Math.random() * 0.2); // 30-50% increase
-        
+
         newState.actors = [...newState.actors];
         const updatedActor = {
           ...newState.actors[actorIdx],
@@ -226,24 +234,24 @@ export const applyAwardEffects = async (
         events.push({
           id: uuid(),
           month: newState.month,
-          type: 'GOOD',
+          type: 'INFO',
           message: `GOSSIP: ${winner.actorName}'s asking price surges ${salaryIncreasePct}% following ${winner.category} win!`,
           read: false,
+          isGlobal: true, // All players see actor salary changes
         });
       }
     }
   }
 
-  // Add ceremony summary event
-  const playerWins = winners.filter(w => w.studioId === 'player').length;
-  const playerNominations = ceremony.nominations.filter(n => n.studioId === 'player').length;
-
+  // Add ceremony summary event (GLOBAL)
+  const bestPictureWinner = winners.find(w => w.category === AwardCategory.BestPicture);
   events.push({
     id: uuid(),
     month: newState.month,
-    type: playerWins > 0 ? 'GOOD' : 'INFO',
-    message: `AWARDS: ${ceremony.year} Academy Awards complete! ${state.studioName}: ${playerWins} wins from ${playerNominations} nominations.`,
+    type: 'INFO',
+    message: `AWARDS: ${ceremony.year} Academy Awards complete! Best Picture: "${bestPictureWinner?.movieTitle || 'N/A'}"`,
     read: false,
+    isGlobal: true, // Visible to all players
   });
 
   return { updatedState: newState, events };

@@ -57,22 +57,8 @@ export const MagazineWindow: React.FC<Props> = ({ state, onClose, onMinimize, is
       filtered = filtered.filter(e => e.message.toLowerCase().includes(query));
     }
 
-    // Sort chronologically: most recent first (by year, then month)
-    filtered = filtered.sort((a, b) => {
-      // First by year (higher = more recent), defaulting to current year if missing
-      const yearA = a.year || state.year;
-      const yearB = b.year || state.year;
-      if (yearA !== yearB) {
-        return yearB - yearA;
-      }
-      // Then by month within same year (higher = more recent)
-      if (a.month !== b.month) {
-        return (b.month || 0) - (a.month || 0);
-      }
-      // Finally by ID (lexicographic, newer IDs are typically higher)
-      return b.id.localeCompare(a.id);
-    });
-
+    // Sort chronologically: most recent first (based on hook order which is created_at)
+    // We trust useEvents to return latest events first
     return filtered;
   }, [events, activeCategory, searchQuery]);
 

@@ -219,13 +219,24 @@ export const useContracts = () => {
         return { error: updateError.message, contract: null };
       }
 
-      // Insert news event
+      // Get studio name for global event
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .single();
+      const studioName = profileData?.username || "A studio";
+
+      // Insert global news event (visible to all players)
       await supabase.from("game_events").insert({
-        id: crypto.randomUUID(),
+        user_id: user.id,
+        event_type: "INFO",
+        title: "CASTING",
+        description: `CASTING: ${studioName} signs ${actorData.name} to an exclusive ${durationMonths}-month contract!`,
         month: currentMonth,
-        type: "INDUSTRY",
-        message: `CASTING: ${actorData.name} has signed an exclusive contract!`,
-        read: false
+        year: currentYear,
+        is_read: false,
+        is_global: true, // Visible to all players
       });
 
       await fetchContracts();

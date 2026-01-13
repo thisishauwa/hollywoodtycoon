@@ -24,6 +24,8 @@ import { ReleasedFilms } from "./components/Releases";
 import { Awards } from "./components/Awards";
 import { MagazineWindow } from "./components/MagazineWindow";
 import { StudioNetwork } from "./components/StudioNetwork";
+import { useGlobalOwnedScripts } from "./hooks/useGlobalOwnedScripts";
+import { useScripts } from "./hooks/useScripts";
 // ActorChat removed - studio chat is in Messenger
 import { StartMenu } from "./components/StartMenu";
 import { AuthScreen } from "./components/AuthScreen";
@@ -237,6 +239,14 @@ const App: React.FC = () => {
     }
   }, [dbProjects]);
 
+  const { scripts: allScripts, loading: scriptsLoading } = useScripts();
+  const { globalOwnedScriptIds, loading: globalScriptsLoading } = useGlobalOwnedScripts();
+  
+  // Filter out ANY script that is in the global owned set
+  const marketScripts = allScripts.filter(
+    (s) => !globalOwnedScriptIds.has(s.id)
+  );
+
   // Sync actors from Supabase to gameState - only on initial load
   const actorsInitialized = useRef(false);
   useEffect(() => {
@@ -416,9 +426,27 @@ const App: React.FC = () => {
         let balanceChange = 0;
         let reputationChange = 0;
 
-        // 1. MONTHLY MARKET EVENTS (2 good + 2 bad)
-        const { good: goodMarketEvents, bad: badMarketEvents } = generateMonthlyEvents(targetMonth, targetYear);
-        const allMarketEvents = [...goodMarketEvents, ...badMarketEvents];
+        // 1. Check if global events already exist for this month (Leader Election / Deduplication)
+        const { count: existingGlobalEventsCount } = await supabase
+           .from("game_events")
+           .select("*", { count: 'exact', head: true })
+           .eq("month", targetMonth)
+           .eq("year", targetYear)
+           .eq("is_global", true);
+
+        let allMarketEvents: any[] = [];
+        let shouldInsertGlobalEvents = false;
+
+        if (existingGlobalEventsCount && existingGlobalEventsCount > 0) {
+            console.log(`[WorldEvents] Global events already exist for ${targetMonth}/${targetYear}. Skipping generation.`);
+            // Global events already exist - don't generate or insert new ones
+            shouldInsertGlobalEvents = false;
+        } else {
+             // We are the "Leader" - first client to reach this month generates global events
+            shouldInsertGlobalEvents = true;
+            const { good: goodMarketEvents, bad: badMarketEvents } = generateMonthlyEvents(targetMonth, targetYear);
+            allMarketEvents = [...goodMarketEvents, ...badMarketEvents];
+        }
         
         // Apply market event impacts
         const marketImpacts = applyMonthlyEventImpacts(
@@ -447,11 +475,16 @@ const App: React.FC = () => {
             type: formatted.type.toUpperCase(),
             message: formatted.headline,
             read: false,
+            isGlobal: true, // Mark as global for DB insert
           });
         }
 
-        // 2. ACTOR LIFECYCLE EVENTS (2-3 significant events)
-        const lifecycleEvents = generateActorLifecycleEvents(gameState.actors, 3);
+        // 2. ACTOR LIFECYCLE EVENTS - only generate if we're the leader (shouldInsertGlobalEvents)
+        // Limit: 3 events total per month (market + lifecycle combined)
+        const remainingSlots = Math.max(0, 3 - newEvents.length);
+        const lifecycleEvents = shouldInsertGlobalEvents
+          ? generateActorLifecycleEvents(gameState.actors, remainingSlots)
+          : [];
         let updatedActors = [...gameState.actors];
         
         for (const event of lifecycleEvents) {
@@ -459,7 +492,7 @@ const App: React.FC = () => {
           const actorIndex = updatedActors.findIndex(a => a.id === event.actorId);
           if (actorIndex !== -1) {
             updatedActors[actorIndex] = applyActorLifecycleEvent(updatedActors[actorIndex], event);
-            
+
             // Format for Variety
             const formatted = formatEventForVariety(event, 'actor', targetMonth, targetYear);
             newEvents.push({
@@ -468,6 +501,7 @@ const App: React.FC = () => {
               type: formatted.type.toUpperCase(),
               message: formatted.headline,
               read: false,
+              isGlobal: true, // Mark as global for DB insert
             });
           }
         }
@@ -485,14 +519,19 @@ const App: React.FC = () => {
                if (ceremony) {
                    // Save to database
                    await createCeremony(ceremony);
-                   const playerNoms = ceremony.nominations.filter(n => n.studioId === 'player').length;
+                   // Get Best Picture nominees for the headline
+                   const bestPicNoms = ceremony.nominations
+                       .filter(n => n.category === 'Best Picture')
+                       .map(n => `"${n.movieTitle}"`)
+                       .slice(0, 3)
+                       .join(', ');
                    newEvents.push({
                        id: uuid(),
                        month: targetMonth,
-                       type: playerNoms > 0 ? 'GOOD' : 'INFO',
-                       message: `AWARDS: ${prevYear} Academy Award nominations announced! ` + 
-                                (playerNoms > 0 ? `You received ${playerNoms} nomination(s).` : `No nominations for your studio.`),
+                       type: 'INFO',
+                       message: `AWARDS: ${prevYear} Academy Award nominations announced! Best Picture nominees include: ${bestPicNoms}...`,
                        read: false,
+                       isGlobal: true, // Visible to all players
                    });
                }
            }
@@ -525,20 +564,41 @@ const App: React.FC = () => {
         // Pure, trackable events only!
 
 
-        // Transform events for DB
-        const dbEvents = newEvents.map(e => ({
-            user_id: user.id,
-            event_type: e.type.toLowerCase() === 'gossip' ? 'gossip' : e.type, 
-            title: e.type,
-            description: e.message,
-            month: targetMonth,
-            year: targetYear,
-            is_read: false
-        }));
+        // Separate global events (market, lifecycle) from player-specific events (awards)
+        const globalEvents = newEvents.filter(e => e.isGlobal);
+        const playerEvents = newEvents.filter(e => !e.isGlobal);
 
-        // INSERT into Supabase
-        if (dbEvents.length > 0) {
-            await supabase.from("game_events").insert(dbEvents);
+        // INSERT GLOBAL events into Supabase (only if we're the leader)
+        if (shouldInsertGlobalEvents && globalEvents.length > 0) {
+            // Limit to max 3 global events per month
+            const limitedGlobalEvents = globalEvents.slice(0, 3);
+            const dbGlobalEvents = limitedGlobalEvents.map(e => ({
+                user_id: user.id, // Still need user_id for RLS, but marked as global
+                event_type: e.type.toLowerCase() === 'gossip' ? 'gossip' : e.type,
+                title: e.type,
+                description: e.message,
+                month: targetMonth,
+                year: targetYear,
+                is_read: false,
+                is_global: true // CRITICAL: Mark as global for multiplayer visibility
+            }));
+            await supabase.from("game_events").insert(dbGlobalEvents);
+            console.log(`[WorldEvents] Inserted ${dbGlobalEvents.length} global events for ${targetMonth}/${targetYear}`);
+        }
+
+        // INSERT player-specific events (awards, etc.) - these are per-user
+        if (playerEvents.length > 0) {
+            const dbPlayerEvents = playerEvents.map(e => ({
+                user_id: user.id,
+                event_type: e.type.toLowerCase() === 'gossip' ? 'gossip' : e.type,
+                title: e.type,
+                description: e.message,
+                month: targetMonth,
+                year: targetYear,
+                is_read: false,
+                is_global: false
+            }));
+            await supabase.from("game_events").insert(dbPlayerEvents);
         }
 
         // UPDATE Local State - Now with balance and reputation changes!
@@ -760,7 +820,8 @@ const App: React.FC = () => {
               progress: 100,
             });
 
-            // Add box office event
+            // Add box office event (GLOBAL - visible to all players)
+            const releaseStudioName = profile?.username || "A studio";
             newEvents.push({
               id: `box-office-${movie.id}`,
               month: clock.month,
@@ -769,8 +830,9 @@ const App: React.FC = () => {
                 releaseResult.revenueResult.performance === "Underperformer"
                   ? "BAD"
                   : "GOOD",
-              message: releaseResult.review,
+              message: `BOX OFFICE: ${releaseStudioName} releases "${movie.title}" (${movie.genre}). ${releaseResult.review}`,
               read: false,
+              isGlobal: true, // Visible to all players
             });
 
             console.log(
@@ -864,13 +926,14 @@ const App: React.FC = () => {
         // Insert production events into Supabase
         if (newEvents.length > 0) {
           const { error } = await supabase.from("game_events").insert(
-            newEvents.map((e) => ({
+            newEvents.map((e: any) => ({
               user_id: user.id,
               event_type: e.type.toLowerCase(),
               title: e.type,
               description: e.message,
               month: clock.month,
               year: clock.year,
+              is_global: e.isGlobal || false, // Respect global flag
             }))
           );
 
@@ -907,19 +970,22 @@ const App: React.FC = () => {
       JSON.parse(sessionStorage.getItem(notifiedKey) || '[]')
     );
 
-    if (!scriptsInitialized.current) {
-        // On first load, mark all current scripts as "already notified" so we don't show notifications for existing scripts
-        const allIds = [...currentIds];
-        sessionStorage.setItem(notifiedKey, JSON.stringify(allIds));
-        prevOwnedScriptIds.current = currentIds;
-        scriptsInitialized.current = true;
-        return;
-    }
-
     // Find truly new IDs (not in previous state AND not already notified this session)
     const newIds = [...currentIds].filter(id =>
       !prevOwnedScriptIds.current.has(id) && !notifiedScripts.has(id)
     );
+
+    // SKIP notifications on the very first load to prevent spam on refresh
+    if (!scriptsInitialized.current) {
+        if (newIds.length > 0) {
+            // Mark all existing scripts as "seen" so they don't trigger alerts
+            const allIds = [...currentIds];
+            sessionStorage.setItem(notifiedKey, JSON.stringify(allIds));
+            prevOwnedScriptIds.current = currentIds;
+            scriptsInitialized.current = true;
+        }
+        return;
+    }
 
     if (newIds.length > 0) {
         newIds.forEach(id => {
@@ -929,19 +995,21 @@ const App: React.FC = () => {
                 notifiedScripts.add(id);
 
                 // Trigger Notification
-                notifications.notifyScriptAcquired(script.title);
+                // notifyScriptAcquired removed to prevent spam on refresh
 
                 // Trigger Variety Event (BACKGROUND)
                  const insertEvent = async () => {
                      try {
+                        const studioName = user.user_metadata?.username || profile?.username || "The studio";
                         const { error } = await supabase.from("game_events").insert({
                             user_id: user.id,
                             event_type: "INFO",
                             title: "SCRIPT ACQUIRED",
-                            description: `The studio has acquired rights to "${script.title}" (${script.genre}). Pre-production can now begin.`,
+                            description: `${studioName} has acquired rights to "${script.title}" (${script.genre}). Pre-production can now begin.`,
                             month: clock?.month || gameState.month,
                             year: clock?.year || gameState.year,
-                            is_read: false
+                            is_read: false,
+                            is_global: true // Visible to all players
                         });
                         if (error) console.error("Error inserting script event:", error);
                      } catch (e) {
@@ -957,7 +1025,7 @@ const App: React.FC = () => {
     }
 
     prevOwnedScriptIds.current = currentIds;
-  }, [multiplayerOwnedScripts, ownedScriptsLoading, user, clock?.month, clock?.year, notifications]);
+  }, [multiplayerOwnedScripts, ownedScriptsLoading, user, clock?.month, clock?.year, notifications, profile]);
 
   // Show mobile blocker if on mobile device
   if (isMobile) {
@@ -1103,23 +1171,25 @@ const App: React.FC = () => {
           }
 
           // Player wins!
+          const studioName = profile?.username || "A studio";
           const wonEvent: GameEvent = {
             id: uuid(),
             month: prev.month,
             type: "GOOD",
-            message: `ACQUISITION: Rights to "${script.title}" secured for $${script.currentBid.toLocaleString()}!`,
+            message: `ACQUISITION: ${studioName} acquires "${script.title}" for $${script.currentBid.toLocaleString()}!`,
             read: false,
           };
 
-          // Save to database for Variety
+          // Save to database for Variety (GLOBAL - visible to all players)
           supabase.from("game_events").insert({
             user_id: user.id,
-            event_type: 'good',
-            title: 'GOOD',
-            description: `ACQUISITION: Rights to "${script.title}" secured for $${script.currentBid.toLocaleString()}!`,
+            event_type: 'INFO',
+            title: 'ACQUISITION',
+            description: `ACQUISITION: ${studioName} acquires "${script.title}" (${script.genre}) for $${script.currentBid.toLocaleString()}!`,
             month: clock.month,
             year: clock.year,
-            is_read: false
+            is_read: false,
+            is_global: true, // Visible to all players
           });
 
           // NOTE: Removed notification - auction results shown in Variety feed only
@@ -1274,15 +1344,17 @@ const App: React.FC = () => {
     const newBalance = gameState.balance - (budget + marketing);
     await updateBalance(newBalance);
 
-    // Save events to database
+    // Save events to database (GLOBAL - visible to all players)
+    const studioName = profile?.username || "A studio";
     const greenlightEvent = {
       user_id: user.id,
       event_type: "GOOD",
       title: "Project Greenlit",
-      description: `GREENLIT: "${script.title}" production started.`,
+      description: `GREENLIT: ${studioName} has greenlit "${script.title}" (${script.genre}). Production begins.`,
       month: gameState.month,
       year: gameState.year,
       is_read: false,
+      is_global: true, // Visible to all players
     };
 
     await supabase.from("game_events").insert(greenlightEvent);
@@ -1292,10 +1364,11 @@ const App: React.FC = () => {
         user_id: user.id,
         event_type: "AD",
         title: "Marketing Campaign",
-        description: `MARKETING: ${script.title}`,
+        description: `MARKETING: ${studioName} launches major campaign for "${script.title}"`,
         month: gameState.month,
         year: gameState.year,
         is_read: false,
+        is_global: true, // Visible to all players
       });
     }
 
