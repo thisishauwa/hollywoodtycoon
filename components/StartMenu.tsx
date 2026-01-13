@@ -514,7 +514,7 @@ export const StartMenu: React.FC<StartMenuProps> = ({
               />
 
               {/* Left panel - Programs */}
-              <div className="flex-1 bg-white p-[6px] flex flex-col gap-1 min-h-[374px]">
+              <div className="flex-1 bg-white p-[6px] flex flex-col gap-1 min-h-[280px]">
                 {programItems.map((item, index) => (
                   <div
                     key={index}
@@ -549,7 +549,7 @@ export const StartMenu: React.FC<StartMenuProps> = ({
               </div>
 
               {/* Right panel - Locations */}
-              <div className="w-[188px] bg-[#d3e5fa] border-l border-[#95bdee] p-[6px] pt-2 flex flex-col gap-1 h-[374px] overflow-y-auto">
+              <div className="w-[188px] bg-[#d3e5fa] border-l border-[#95bdee] p-[6px] pt-2 flex flex-col gap-1 h-[280px] overflow-y-auto">
                 {locationItems.map((item, index) => (
                   <div
                     key={index}
