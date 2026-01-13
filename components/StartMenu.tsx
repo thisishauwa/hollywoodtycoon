@@ -7,9 +7,10 @@ const iconUserAccounts = "/images/High-Res_XP_Icons/User Accounts.ico";
 const iconHelp = "/images/High-Res_XP_Icons/User Support.ico";
 const iconControlPanel = "/images/High-Res_XP_Icons/Display.ico";
 const iconInternet = "/images/High-Res_XP_Icons/Internet Properties.ico";
-const iconFile = "/images/High-Res_XP_Icons/File.ico";
 const iconFolder = "/images/High-Res_XP_Icons/Folder Closed.ico";
-const iconLogOff = "/images/High-Res_XP_Icons/User 2.ico";
+const iconGameController = "/images/High-Res_XP_Icons/Game Controller.ico";
+const iconActivateWindows = "/images/High-Res_XP_Icons/Activate Windows.ico";
+const iconLogOff = "/images/e4e4b7c82836ea1d57b3e70406ce25ededc95b6c.png";
 
 // XP-style standard window (blue title bar, beige body)
 const XPModal: React.FC<{
@@ -423,7 +424,9 @@ export const StartMenu: React.FC<StartMenuProps> = ({
   // Left panel - Implemented features only
   const programItems: ProgramItem[] = [
     { icon: iconMyProfile, label: "My Profile", onClick: () => { setShowMyProfile(true); onClose(); } },
-    { icon: iconFile, label: "Credits", onClick: () => { setShowCredits(true); onClose(); } },
+    { icon: iconFolder, label: "Credits", onClick: () => { setShowCredits(true); onClose(); } },
+    { icon: iconGameController, label: "Games", sublabel: "Coming Soon" },
+    { icon: iconActivateWindows, label: "Invite Users", sublabel: "Coming Soon" },
   ];
 
   // Right panel - Quick access locations
