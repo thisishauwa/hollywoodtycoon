@@ -1,19 +1,15 @@
 import React, { useState } from "react";
 
-// Import icons from Figma
-const iconInternet = "/images/4d7e8c868beeb6a52b134fb9224e6f219986120f.png";
-const iconEmail = "/images/67245b8379bfc95e877a8bf77af11e50f93c9666.png";
-const iconMediaPlayer = "/images/a452f2899a0222d68b78c6d0316b8e5b4001de15.png";
-const iconMSN = "/images/aae80cc02bc3611b9d11394e6347e669ba3148cc.png";
-const iconMessenger = "/images/3d588ce8e469ecee21d24fcd281ee392f4046a27.png";
-const iconTour = "/images/6bcc50f02444b307a4111cd673e2c2151ec8e689.png";
-const iconMyDocuments = "/images/8f324bd70a4b74d383205e1e964a352e5a8fcdb1.png";
-const iconMyPictures = "/images/0139ae1ab0cd145c3dd9e9b345d1522b74e6ba70.png";
-const iconComputer = "/images/My computer.ico";
-const iconControlPanel = "/images/3849be99b89c123dd6ff0b28fe733fd1558334fd.png";
-const iconHelp = "/images/8102f876b018bca29c07ca9bc0dd7609e2adc5db.png";
-const iconRun = "/images/ce00f48541fffae4db3ea6a2096246e36e66a774.png";
-const iconLogOff = "/images/e4e4b7c82836ea1d57b3e70406ce25ededc95b6c.png";
+// High-Res XP Icons
+const iconMyComputer = "/images/High-Res_XP_Icons/My Computer.ico";
+const iconMyProfile = "/images/High-Res_XP_Icons/User 1.ico";
+const iconUserAccounts = "/images/High-Res_XP_Icons/User Accounts.ico";
+const iconHelp = "/images/High-Res_XP_Icons/User Support.ico";
+const iconControlPanel = "/images/High-Res_XP_Icons/Display.ico";
+const iconInternet = "/images/High-Res_XP_Icons/Internet Properties.ico";
+const iconFile = "/images/High-Res_XP_Icons/File.ico";
+const iconFolder = "/images/High-Res_XP_Icons/Folder Closed.ico";
+const iconLogOff = "/images/High-Res_XP_Icons/User 2.ico";
 
 // XP-style standard window (blue title bar, beige body)
 const XPModal: React.FC<{
@@ -96,7 +92,7 @@ const CreditsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 
 // About Game Modal - 'winver' style
 const AboutGameModal: React.FC<{ onClose: () => void; username?: string }> = ({ onClose, username = "Player" }) => (
-  <XPModal title="About Hollywood Tycoon" onClose={onClose} width="w-[410px]" icon={iconComputer}>
+  <XPModal title="About Hollywood Tycoon" onClose={onClose} width="w-[410px]" icon={iconMyComputer}>
     <div className="flex flex-col select-none">
        {/* Banner */}
        <div className="-mt-3 -mx-3 mb-4 h-16 bg-white border-b border-[#a0a0a0] flex items-center px-4 overflow-hidden relative">
@@ -424,22 +420,17 @@ export const StartMenu: React.FC<StartMenuProps> = ({
   const [showMyProfile, setShowMyProfile] = useState(false);
 
   // Program items with handlers
+  // Left panel - Implemented features only
   const programItems: ProgramItem[] = [
-    { icon: iconInternet, label: "Studio Manager", sublabel: "Current Game" },
-    { icon: iconEmail, label: "New Game", sublabel: "Start Fresh" },
-    { icon: iconMSN, label: "Settings" },
-    { icon: iconMessenger, label: "Credits", onClick: () => { setShowCredits(true); onClose(); } },
-    { icon: iconTour, label: "Help & Support" },
+    { icon: iconMyProfile, label: "My Profile", onClick: () => { setShowMyProfile(true); onClose(); } },
+    { icon: iconFile, label: "Credits", onClick: () => { setShowCredits(true); onClose(); } },
   ];
 
-  // Location items with handlers
+  // Right panel - Quick access locations
   const locationItems: LocationItem[] = [
-    { icon: iconMyDocuments, label: "My Profile", onClick: () => { setShowMyProfile(true); onClose(); } },
-    { icon: iconMyPictures, label: "Leaderboards" },
-    { icon: iconComputer, label: "About Game", onClick: () => { setShowAboutGame(true); onClose(); } },
-    { icon: iconControlPanel, label: "Control Panel" },
-    { icon: iconHelp, label: "Help and Support" },
-    { icon: iconRun, label: "Run..." },
+    { icon: iconMyComputer, label: "About Game", onClick: () => { setShowAboutGame(true); onClose(); } },
+    { icon: iconControlPanel, label: "Control Panel", hasArrow: true },
+    { icon: iconHelp, label: "Help and Support", hasArrow: true },
   ];
 
   return (
