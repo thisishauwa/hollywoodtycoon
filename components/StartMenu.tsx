@@ -329,20 +329,25 @@ const MyProfileModal: React.FC<{
                      
                      <div className="h-48 overflow-y-auto border border-[#7f9db9] bg-white p-2 mb-4 grid grid-cols-5 gap-2">
                         {[
-                          "/images/random-avatar-1.png",
-                          "/images/random-avatar-2.png",
-                          "/images/random-avatar-3.png",
-                          "/images/My computer.ico",
-                          "/images/internetexplorer.svg",
-                          "/images/mail:message.svg",
-                          "/images/3d588ce8e469ecee21d24fcd281ee392f4046a27.png" // Messenger icon
+                          "/images/profile-airplane.jpg",
+                          "/images/profile-astronaut.jpg",
+                          "/images/profile-ball.jpg",
+                          "/images/profile-beach.jpg",
+                          "/images/profile-car.jpg",
+                          "/images/profile-cat.jpg",
+                          "/images/profile-chess.jpg",
+                          "/images/profile-dog.jpg",
+                          "/images/profile-duck.jpg",
+                          "/images/profile-fish.jpg",
+                          "/images/profile-guitar.jpg",
+                          "/images/profile-snowflake.jpg",
                         ].map((src, i) => (
                            <div 
                               key={i}
                               onClick={() => setNewAvatar(src)}
                               className={`aspect-square flex items-center justify-center p-2 border hover:bg-blue-50 cursor-pointer rounded-sm ${newAvatar === src ? 'border-[#0055e5] bg-blue-100 ring-1 ring-[#0055e5]' : 'border-transparent'}`}
                            >
-                              <img src={src} className="w-10 h-10 object-contain" alt="Avatar option" />
+                            <img src={src} className="w-10 h-10 object-cover rounded-sm" alt="Avatar option" />
                            </div>
                         ))}
                      </div>
