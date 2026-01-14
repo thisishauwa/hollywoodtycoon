@@ -16,6 +16,7 @@ import {
   StatusBar,
   RetroButton,
   DesktopIcon,
+  ExplorerToolbar,
 } from "./components/RetroUI";
 import { Dashboard } from "./components/Dashboard";
 import { ScriptMarket } from "./components/ScriptMarket";
@@ -44,7 +45,7 @@ import { supabase } from "./lib/supabase";
 import { ToastContainer } from "./contexts/ToastContext";
 import { useGameNotifications } from "./hooks/useGameNotifications";
 import { useSound } from "./contexts/SoundContext";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 const uuid = () =>
   "id-" +

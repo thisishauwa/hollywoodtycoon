@@ -179,11 +179,6 @@ const MyProfileModal: React.FC<{
       {/* Full "User Accounts" Window Replica */}
       <div className="w-[600px] h-[550px] bg-white border border-[#0055e5] rounded-lg shadow-2xl flex flex-col overflow-hidden">
         {/* Top Gradient Bar */}
-import { ExplorerToolbar } from "./RetroUI";
-
-// ... (in MyProfileModal)
-
-        {/* Top Gradient Bar */}
         <div className="h-[50px] bg-[#0055e5] flex items-center justify-between px-4 shrink-0 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-[#53a3ff] opacity-50"></div>
             <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
