@@ -442,7 +442,7 @@ export const ExplorerToolbar: React.FC<{
   return (
     <div className="h-[38px] bg-[#efeecf] border-b border-[#d4d0c8] flex items-center px-1 gap-1 select-none shadow-[inset_0_-1px_0_rgba(255,255,255,0.5)]">
        {/* Back Button Group */}
-       <div className="flex items-center gap-0 mr-1 relative group cursor-pointer" onClick={onBack}>
+       <div className="flex items-center gap-0 mr-0.5 relative group cursor-pointer" onClick={onBack}>
            <button
              disabled={!canBack}
              className={`flex flex-col items-center justify-center rounded-full hover:brightness-110 active:brightness-95 transition-all
@@ -450,7 +450,7 @@ export const ExplorerToolbar: React.FC<{
              `}
              title="Back"
            >
-              <img src="/images/assetsfortopnav/backCircular.png" className="w-[32px] h-[32px] object-contain" alt="Back" />
+              <img src="/images/assetsfortopnav/backCircular.png" className="h-[32px] w-auto object-contain" alt="Back" />
               <span className="text-[9px] text-[#444] -mt-1.5 font-tahoma">Back</span>
            </button>
            <div className="ml-0 opacity-70">
@@ -462,7 +462,7 @@ export const ExplorerToolbar: React.FC<{
        <button
          onClick={onForward}
          disabled={!canForward}
-         className={`hover:brightness-110 active:brightness-95 transition-all ml-1
+         className={`hover:brightness-110 active:brightness-95 transition-all
             ${!canForward ? 'opacity-50 grayscale cursor-default' : 'cursor-pointer'}
          `}
          title="Forward"
@@ -471,7 +471,7 @@ export const ExplorerToolbar: React.FC<{
        </button>
 
        {/* Separator */}
-       <div className="w-[1px] h-[24px] bg-gray-300 mx-2 shadow-[1px_0_0_white]"></div>
+       <div className="w-[1px] h-[24px] bg-gray-300 ml-2 mr-1.5 shadow-[1px_0_0_white]"></div>
 
        {/* Folder/Up Button */}
        <button
@@ -479,21 +479,21 @@ export const ExplorerToolbar: React.FC<{
          className="flex items-center justify-center w-8 h-8 hover:bg-white/40 border border-transparent hover:border-gray-300 rounded-[2px]"
          title="Up"
        >
-          <img src="/images/assetsfortopnav/Folder Open.png" className="w-[20px] h-[20px] object-contain" alt="Up" />
+          <img src="/images/assetsfortopnav/Folder Open.png" className="w-auto h-[22px] object-contain" alt="Up" />
        </button>
        
        <button
          className="flex items-center justify-center w-8 h-8 hover:bg-white/40 border border-transparent hover:border-gray-300 rounded-[2px]"
          title="Search"
        >
-          <img src="/images/High-Res_XP_Icons/Search.ico" className="w-[20px] h-[20px] object-contain" alt="Search" />
+          <img src="/images/High-Res_XP_Icons/User Support.ico" className="w-auto h-[22px] object-contain" alt="Search" />
        </button>
        
        <button
          className="flex items-center justify-center w-8 h-8 hover:bg-white/40 border border-transparent hover:border-gray-300 rounded-[2px]"
          title="Folders"
        >
-          <img src="/images/High-Res_XP_Icons/Folder Closed.ico" className="w-[20px] h-[20px] object-contain" alt="Folders" />
+          <img src="/images/High-Res_XP_Icons/Folder Closed.ico" className="w-auto h-[22px] object-contain" alt="Folders" />
        </button>
 
        {/* Separator */}
@@ -503,7 +503,7 @@ export const ExplorerToolbar: React.FC<{
          className="flex items-center justify-center w-8 h-8 hover:bg-white/40 border border-transparent hover:border-gray-300 rounded-[2px]"
          title="Views"
        >
-          <img src="/images/High-Res_XP_Icons/Display.ico" className="w-[20px] h-[20px] object-contain" alt="Views" />
+          <img src="/images/High-Res_XP_Icons/Display.ico" className="w-auto h-[22px] object-contain" alt="Views" />
        </button>
 
     </div>

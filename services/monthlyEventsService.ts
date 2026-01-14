@@ -36,8 +36,8 @@ const GOOD_EVENTS: Omit<MonthlyEvent, 'id'>[] = [
     description: 'Major streaming platform offers lucrative licensing deal',
     varietyHeadline: 'STREAMING WARS: Your studio lands coveted licensing deal with major platform.',
     impact: {
-      money: 800000,
-      reputation: 5,
+      money: 250000,
+      reputation: 2,
     },
     cooldownMonths: 6,
   },
@@ -70,7 +70,7 @@ const GOOD_EVENTS: Omit<MonthlyEvent, 'id'>[] = [
     description: 'Media praises your recent work',
     varietyHeadline: 'CRITICAL DARLING: Industry insiders heap praise on your studio\'s recent output.',
     impact: {
-      reputation: 15,
+      reputation: 4,
     },
     cooldownMonths: 2,
   },
@@ -81,8 +81,8 @@ const GOOD_EVENTS: Omit<MonthlyEvent, 'id'>[] = [
     description: 'Venture capital shows interest in your studio',
     varietyHeadline: 'FUNDING SECURED: Wall Street bets big on Hollywood. Your studio benefits.',
     impact: {
-      money: 500000,
-      reputation: 10,
+      money: 150000,
+      reputation: 3,
     },
     cooldownMonths: 6,
   },
@@ -119,7 +119,7 @@ const BAD_EVENTS: Omit<MonthlyEvent, 'id'>[] = [
     varietyHeadline: 'BLOCKBUSTER BLITZ: Competitor\'s mega-hit dominates theaters. Other studios suffer.',
     impact: {
       revenueMultiplier: 0.75, // -25% revenue due to competition
-      reputation: -10,
+      reputation: -3,
     },
     cooldownMonths: 3,
   },
@@ -130,7 +130,7 @@ const BAD_EVENTS: Omit<MonthlyEvent, 'id'>[] = [
     description: 'Hollywood scandal damages all studios',
     varietyHeadline: 'SCANDAL ROCKS HOLLYWOOD: Industry-wide controversy damages public perception.',
     impact: {
-      reputation: -10,
+      reputation: -3,
     },
     cooldownMonths: 5,
   },

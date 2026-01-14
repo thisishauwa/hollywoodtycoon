@@ -1136,12 +1136,15 @@ const App: React.FC = () => {
   // User is fully authenticated with profile - show dashboard
 
   const focusWindow = (id: string) => {
-    setTopZ((prev) => prev + 1);
-    setActiveWindowId(id);
-    setWindows((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], zIndex: topZ + 1, isMinimized: false, isOpen: true },
-    }));
+    setTopZ((prev) => {
+      const newZ = prev + 1;
+      setWindows((prevWindows) => ({
+        ...prevWindows,
+        [id]: { ...prevWindows[id], zIndex: newZ, isMinimized: false, isOpen: true },
+      }));
+      setActiveWindowId(id);
+      return newZ;
+    });
   };
 
   const closeWindow = (id: string) => {
@@ -1560,8 +1563,18 @@ const App: React.FC = () => {
               }}
             >
               <div className="flex flex-col h-auto overflow-hidden bg-[#ece9d8]">
+                {/* MENU BAR */}
+                <div className="h-5 bg-[#ece9d8] flex items-center px-1 border-b border-[#d4d0c8] select-none font-tahoma text-[11px] shrink-0">
+                    <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">File</span>
+                    <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Edit</span>
+                    <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">View</span>
+                    <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Favorites</span>
+                    <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Tools</span>
+                    <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Help</span>
+                </div>
+
                 {/* FIXED TABS HEADER */}
-                <div className="flex px-1 pt-1 items-end shrink-0 border-b border-[#808080] bg-[#dcd8c0]">
+                <div className="flex px-1 pt-1.5 items-end shrink-0 border-b border-[#808080] bg-[#ece9d8]">
                   <RetroTab
                     isActive={activeTab === "dashboard"}
                     onClick={() => setActiveTab("dashboard")}
@@ -1593,13 +1606,16 @@ const App: React.FC = () => {
                 <div className="h-auto p-0.5 flex flex-col overflow-hidden bg-white">
                   {activeTab === "dashboard" && (
                     <div className="flex justify-end p-2 bg-[#ece9d8] border-b border-[#808080] shrink-0">
-                      <RetroButton
-                        onClick={() => setShowProductionWizard(true)}
-                        variant="primary"
-                        className="h-8 px-4 font-bold !bg-gradient-to-b !from-[#ece9d8] !to-[#d8d4c0] hover:!from-[#f5f5f5] hover:!to-[#e0dcc8]"
-                      >
-                        GREENLIGHT NEW FILM
-                      </RetroButton>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-gray-600">Start a new production:</span>
+                        <RetroButton
+                          onClick={() => setShowProductionWizard(true)}
+                          className="h-[22px] px-3 font-normal"
+                        >
+                          <img src="/images/Video.ico" className="w-4 h-4 mr-1" alt="" />
+                          Greenlight Film
+                        </RetroButton>
+                      </div>
                     </div>
                   )}
 
