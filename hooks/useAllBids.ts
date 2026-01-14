@@ -112,7 +112,7 @@ export const useAllBids = () => {
       console.log("[Bids] Cleaning up subscription");
       subscription.unsubscribe();
     };
-  }, [fetchAllBids]);
+  }, []); // fetchAllBids removed to prevent subscription loop
 
   const getHighestBidForScript = (scriptId: string) => {
     const bids = bidsByScript[scriptId];

@@ -100,7 +100,7 @@ export const useBids = (scriptId?: string) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [scriptId, fetchBids]);
+  }, [scriptId]); // fetchBids removed to prevent subscription loop
 
   const placeBid = async (targetScriptId: string, amount: number) => {
     if (!user) return { error: "Not authenticated" };

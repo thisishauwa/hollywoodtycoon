@@ -350,7 +350,7 @@ export const useStudioMessages = (playNotificationSound?: () => void) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, fetchMessages, fetchOtherStudios]);
+  }, [user]); // fetchMessages and fetchOtherStudios removed to prevent subscription loop
 
   return {
     messages,
