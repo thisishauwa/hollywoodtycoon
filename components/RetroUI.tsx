@@ -435,3 +435,81 @@ export const DesktopIcon: React.FC<{
     </span>
   </button>
 );
+
+export const ExplorerToolbar: React.FC<{
+  onBack?: () => void;
+  onForward?: () => void;
+  onUp?: () => void;
+  canBack?: boolean;
+  canForward?: boolean;
+}> = ({ onBack, onForward, onUp, canBack = true, canForward = false }) => {
+  return (
+    <div className="h-[38px] bg-[#efeecf] border-b border-[#d4d0c8] flex items-center px-1 gap-1 select-none shadow-[inset_0_-1px_0_rgba(255,255,255,0.5)]">
+       {/* Back Button Group */}
+       <div className="flex items-center gap-0 mr-1 relative group cursor-pointer" onClick={onBack}>
+           <button
+             disabled={!canBack}
+             className={`flex flex-col items-center justify-center rounded-full hover:brightness-110 active:brightness-95 transition-all
+               ${!canBack ? 'opacity-50 grayscale cursor-default' : 'cursor-pointer'}
+             `}
+             title="Back"
+           >
+              <img src="/images/assetsfortopnav/backCircular.png" className="w-[32px] h-[32px] object-contain" alt="Back" />
+              <span className="text-[9px] text-[#444] -mt-1.5 font-tahoma">Back</span>
+           </button>
+           <div className="ml-0 opacity-70">
+               <img src="/images/assetsfortopnav/blackArrowbesidetheBackButton.png" className="h-[24px] w-auto object-contain" alt="" />
+           </div>
+       </div>
+
+       {/* Forward Button */}
+       <button
+         onClick={onForward}
+         disabled={!canForward}
+         className={`hover:brightness-110 active:brightness-95 transition-all ml-1
+            ${!canForward ? 'opacity-50 grayscale cursor-default' : 'cursor-pointer'}
+         `}
+         title="Forward"
+       >
+          <img src="/images/assetsfortopnav/forwardCircular.png" className="w-[24px] h-[24px] object-contain" alt="Forward" />
+       </button>
+
+       {/* Separator */}
+       <div className="w-[1px] h-[24px] bg-gray-300 mx-2 shadow-[1px_0_0_white]"></div>
+
+       {/* Folder/Up Button */}
+       <button
+         onClick={onUp}
+         className="flex items-center justify-center w-8 h-8 hover:bg-white/40 border border-transparent hover:border-gray-300 rounded-[2px]"
+         title="Up"
+       >
+          <img src="/images/assetsfortopnav/Folder Open.png" className="w-[20px] h-[20px] object-contain" alt="Up" />
+       </button>
+       
+       <button
+         className="flex items-center justify-center w-8 h-8 hover:bg-white/40 border border-transparent hover:border-gray-300 rounded-[2px]"
+         title="Search"
+       >
+          <img src="/images/High-Res_XP_Icons/Search.ico" className="w-[20px] h-[20px] object-contain" alt="Search" />
+       </button>
+       
+       <button
+         className="flex items-center justify-center w-8 h-8 hover:bg-white/40 border border-transparent hover:border-gray-300 rounded-[2px]"
+         title="Folders"
+       >
+          <img src="/images/High-Res_XP_Icons/Folder Closed.ico" className="w-[20px] h-[20px] object-contain" alt="Folders" />
+       </button>
+
+       {/* Separator */}
+       <div className="w-[1px] h-[24px] bg-gray-300 mx-2 shadow-[1px_0_0_white]"></div>
+       
+         <button
+         className="flex items-center justify-center w-8 h-8 hover:bg-white/40 border border-transparent hover:border-gray-300 rounded-[2px]"
+         title="Views"
+       >
+          <img src="/images/High-Res_XP_Icons/Display.ico" className="w-[20px] h-[20px] object-contain" alt="Views" />
+       </button>
+
+    </div>
+  );
+};

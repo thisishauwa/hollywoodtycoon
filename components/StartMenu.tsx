@@ -179,25 +179,35 @@ const MyProfileModal: React.FC<{
       {/* Full "User Accounts" Window Replica */}
       <div className="w-[600px] h-[550px] bg-white border border-[#0055e5] rounded-lg shadow-2xl flex flex-col overflow-hidden">
         {/* Top Gradient Bar */}
+import { ExplorerToolbar } from "./RetroUI";
+
+// ... (in MyProfileModal)
+
+        {/* Top Gradient Bar */}
         <div className="h-[50px] bg-[#0055e5] flex items-center justify-between px-4 shrink-0 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-[#53a3ff] opacity-50"></div>
             <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
             
             <div className="flex items-center gap-2 z-10">
-                <button onClick={() => setView('menu')} className={`flex items-center gap-1 text-white hover:bg-white/10 px-2 py-1 rounded transition-colors group ${view === 'menu' ? 'opacity-50 cursor-default' : ''}`}>
-                    <div className="w-5 h-5 rounded-full bg-[#1b7e05] border border-[#52bd3b] flex items-center justify-center shadow-sm group-hover:bg-[#239908]">
-                        <svg className="w-3 h-3 text-white -rotate-180" viewBox="0 0 24 24" fill="currentColor">
-                           <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                    <span className="text-[12px] font-bold">Back</span>
-                </button>
-                <button onClick={onClose} className="flex items-center gap-1 text-white hover:bg-white/10 px-2 py-1 rounded transition-colors group">
-                    <div className="w-5 h-5 rounded-full bg-[#1b7e05] border border-[#52bd3b] flex items-center justify-center shadow-sm group-hover:bg-[#239908]">
-                        <img src={iconInternet} className="w-3 h-3" alt="" />
-                    </div>
-                    <span className="text-[12px] font-bold">Home</span>
-                </button>
+                <div className="flex items-center bg-white/10 rounded overflow-hidden p-0.5">
+                   {/* We use a simplified version of the toolbar for this specific modal to match User Accounts style which is slightly different, OR we can just use the icons directly here if the toolbar doesn't match perfectly. 
+                       The User Accounts back button IS green and circular. Let's use the new asset directly here to match the specific "User Accounts" layout if ExplorerToolbar is too generic.
+                       Actually, the user asked to see "the circular back button on the nav within apps".
+                       Let's inject the new Back button here.
+                   */}
+                    <button onClick={() => setView('menu')} className={`flex items-center gap-1 text-white hover:bg-white/10 px-2 py-1 rounded transition-colors group ${view === 'menu' ? 'opacity-50 cursor-default' : ''}`}>
+                        <div className="w-8 h-8 flex items-center justify-center relative">
+                            <img src="/images/assetsfortopnav/backCircular.png" className="w-full h-full object-contain drop-shadow-md" alt="Back" />
+                        </div>
+                        <span className="text-[12px] font-bold">Back</span>
+                    </button>
+                     <button onClick={onClose} className="flex items-center gap-1 text-white hover:bg-white/10 px-2 py-1 rounded transition-colors group ml-2">
+                        <div className="w-8 h-8 flex items-center justify-center">
+                            <img src={iconInternet} className="w-6 h-6 drop-shadow-md" alt="" />
+                        </div>
+                        <span className="text-[12px] font-bold">Home</span>
+                    </button>
+                </div>
             </div>
             
             <div className="text-white text-xl font-bold italic tracking-tight opacity-90 z-10">
