@@ -1610,9 +1610,9 @@ const App: React.FC = () => {
                         <span className="text-[11px] text-gray-600">Start a new production:</span>
                         <RetroButton
                           onClick={() => setShowProductionWizard(true)}
-                          className="h-[22px] px-3 font-normal"
+                          className="!gap-1.5 !px-2"
                         >
-                          <img src="/images/Video.ico" className="w-4 h-4 mr-1" alt="" />
+                          <img src="/images/Video.ico" className="w-4 h-4" alt="" />
                           Greenlight Film
                         </RetroButton>
                       </div>
@@ -1634,7 +1634,6 @@ const App: React.FC = () => {
           )}
 
           {windows.news.isOpen && !windows.news.isMinimized && (
-             <div className="window-enter">
               <MagazineWindow
                 state={gameState}
                 onClose={() => closeWindow("news")}
@@ -1643,11 +1642,9 @@ const App: React.FC = () => {
                 zIndex={windows.news.zIndex}
                 onFocus={() => focusWindow("news")}
               />
-            </div>
           )}
 
           {windows.messenger.isOpen && !windows.messenger.isMinimized && (
-            <div className="window-enter">
               <StudioNetwork
                 state={gameState}
                 onSendMoney={handleSendMoney}
@@ -1659,7 +1656,6 @@ const App: React.FC = () => {
                 onFocus={() => focusWindow("messenger")}
                 playNotificationSound={playNotificationSound}
               />
-            </div>
           )}
       </div>
 

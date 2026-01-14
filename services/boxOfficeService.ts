@@ -65,8 +65,9 @@ export const calculateBoxOfficeRevenue = (
   competitionCount: number = 0 // Number of other films released same month
 ): RevenueCalculationResult => {
   // 1. BASE REVENUE - Starts with production budget as baseline
-  // Industry rule: A film needs to make 2.5x its budget to break even (marketing, distribution, etc.)
-  const baseRevenue = movie.productionBudget * 2.5;
+  // Industry rule: A film needs to make ~2x its budget to break even (marketing, distribution, etc.)
+  // NERFED: Reduced from 2.5 to 1.8 to make profitability harder
+  const baseRevenue = movie.productionBudget * 1.8;
 
   // 2. QUALITY MULTIPLIER (0.5x to 2.0x)
   // Quality score (0-100) determines how well the film is received
@@ -76,8 +77,9 @@ export const calculateBoxOfficeRevenue = (
   // 3. MARKETING MULTIPLIER
   // More marketing = more awareness = more tickets
   // Diminishing returns: First million is most effective
+  // NERFED: Max multiplier reduced from 1.8 to 1.5
   const marketingRatio = movie.marketingBudget / movie.productionBudget;
-  const marketingMultiplier = Math.min(1.8, 1 + marketingRatio * 0.8);
+  const marketingMultiplier = Math.min(1.5, 1 + marketingRatio * 0.8);
   const marketingBonus = baseRevenue * (marketingMultiplier - 1);
 
   // 4. STAR POWER MULTIPLIER
@@ -92,7 +94,8 @@ export const calculateBoxOfficeRevenue = (
       return total + tierMultiplier * reputationFactor;
     }, 0) / Math.max(cast.length, 1);
 
-  const starPowerMultiplier = 0.8 + castStarPower * 0.6; // 0.8x to 1.4x
+  // NERFED: scaling reduced from 0.6 to 0.5
+  const starPowerMultiplier = 0.8 + castStarPower * 0.5; // 0.8x to 1.3x
   const starPowerBonus = baseRevenue * (starPowerMultiplier - 1);
 
   // 5. CHEMISTRY MULTIPLIER
@@ -289,12 +292,13 @@ export const calculateReputationChange = (
   const roi = (result.totalRevenue - totalCost) / totalCost;
 
   // Reputation changes based on ROI
-  if (roi >= 3.0) return 15; // Phenomenon: +15
-  if (roi >= 1.5) return 10; // Blockbuster: +10
-  if (roi >= 0.5) return 5; // Hit: +5
-  if (roi >= 0) return 2; // Moderate: +2
-  if (roi >= -0.5) return -5; // Underperformer: -5
-  return -10; // Flop: -10
+  // NERFED: Drastically reduced gains to make progression slower
+  if (roi >= 3.0) return 5; // Phenomenon: +5 (was +15)
+  if (roi >= 1.5) return 3; // Blockbuster: +3 (was +10)
+  if (roi >= 0.5) return 1; // Hit: +1 (was +5)
+  if (roi >= 0) return 0; // Moderate: 0 (was +2)
+  if (roi >= -0.5) return -2; // Underperformer: -2 (was -5)
+  return -5; // Flop: -5 (was -10) - slightly less punishment to balance harder profits
 };
 
 /**

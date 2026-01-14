@@ -309,63 +309,13 @@ const MyFilms: React.FC<{ state: GameState }> = ({ state }) => {
   );
 };
 
+// Simplified ReleasedFilms component - My Films only
 export const ReleasedFilms: React.FC<Props> = ({ state }) => {
-  const [activeTab, setActiveTab] = useState<'my-films' | 'charts'>('my-films');
-
   return (
     <div className="h-full flex flex-col bg-[#ece9d8] font-tahoma text-[11px]">
-        {/* MENUBAR (Visual Only) */}
-        <div className="h-5 bg-[#ece9d8] flex items-center px-1 border-b border-[#d4d0c8] select-none">
-            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">File</span>
-            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Edit</span>
-            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">View</span>
-            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Favorites</span>
-            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Tools</span>
-            <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Help</span>
-        </div>
-
-        {/* EXPLORER TOOLBAR */}
-        <ExplorerToolbar 
-          onBack={() => {/* No back navigation needed */}}
-          onForward={() => {/* No forward navigation needed */}}
-          onUp={() => {/* No up navigation needed */}}
-          canBack={false}
-          canForward={false}
-        />
-
-        {/* TAB SELECTOR BAR */}
-        <div className="h-10 bg-[#ece9d8] border-b border-[#d4d0c8] flex items-center px-2 gap-1 shrink-0 select-none">
-            <button 
-                onClick={() => setActiveTab('my-films')}
-                className={`flex flex-col items-center justify-center px-2 py-0.5 rounded border ${
-                    activeTab === 'my-films' 
-                    ? 'bg-[#e0decb] border-[#808080] shadow-inner' 
-                    : 'border-transparent hover:border-[#d4d0c8] hover:shadow-sm'
-                }`}
-            >
-                <img src="/images/High-Res_XP_Icons/Video.ico" className="w-5 h-5" />
-                <span className="text-[9px] -mt-0.5">My Films</span>
-            </button>
-            <button 
-                onClick={() => setActiveTab('charts')}
-                className={`flex flex-col items-center justify-center px-2 py-0.5 rounded border ${
-                    activeTab === 'charts' 
-                    ? 'bg-[#e0decb] border-[#808080] shadow-inner' 
-                    : 'border-transparent hover:border-[#d4d0c8] hover:shadow-sm'
-                }`}
-            >
-               <img src="/images/High-Res_XP_Icons/Chart.ico" className="w-5 h-5" />
-                <span className="text-[9px] -mt-0.5">Charts</span>
-            </button>
-        </div>
-
         {/* CONTENT FRAME */}
-        <div className="flex-1 bg-white border-t border-[#808080] overflow-hidden">
-            {activeTab === 'my-films' ? (
-                <MyFilms state={state} />
-            ) : (
-                <BoxOfficeCharts state={state} />
-            )}
+        <div className="flex-1 bg-white overflow-hidden">
+             <MyFilms state={state} />
         </div>
     </div>
   );

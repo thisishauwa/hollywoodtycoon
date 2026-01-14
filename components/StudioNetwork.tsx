@@ -320,14 +320,7 @@ export const StudioNetwork: React.FC<Props> = ({
                       }}
                     />
                     <div className="flex justify-between items-center p-1 bg-gray-100 border-t">
-                      <label className="text-[9px] font-bold ml-1 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={isPublic}
-                          onChange={(e) => setIsPublic(e.target.checked)}
-                        />{" "}
-                        PRESS RELEASE
-                      </label>
+
                       <RetroButton
                         onClick={handleSendMessage}
                         className="!py-0.5 !px-4"
