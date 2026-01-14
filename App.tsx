@@ -45,7 +45,7 @@ import { supabase } from "./lib/supabase";
 import { ToastContainer } from "./contexts/ToastContext";
 import { useGameNotifications } from "./hooks/useGameNotifications";
 import { useSound } from "./contexts/SoundContext";
-import { AnimatePresence, motion } from "framer-motion";
+
 
 const uuid = () =>
   "id-" +
@@ -1544,8 +1544,7 @@ const App: React.FC = () => {
       </div>
 
       <div className="flex-1 relative p-4 z-10 pointer-events-none">
-        <AnimatePresence>
-          {windows.manager.isOpen && !windows.manager.isMinimized && (
+        {windows.manager.isOpen && !windows.manager.isMinimized && (
             <WindowFrame
               key="manager"
               title="StarVision Studio Manager 2003"
@@ -1619,19 +1618,7 @@ const App: React.FC = () => {
           )}
 
           {windows.news.isOpen && !windows.news.isMinimized && (
-             <motion.div
-               key="news" // Key is essential for AnimatePresence
-               initial={{ scale: 0.95, opacity: 0 }}
-               animate={{ scale: 1, opacity: 1 }}
-               exit={{ scale: 0.95, opacity: 0, transition: { duration: 0.1 } }}
-               style={{ 
-                 position: 'absolute', 
-                 zIndex: windows.news.zIndex,
-                 left: 50, // Default positions, overridden by internal state usually, but wrapper needs layout
-                 top: 50
-               }}
-               className="pointer-events-auto"
-            >
+             <div className="window-enter">
               <MagazineWindow
                 state={gameState}
                 onClose={() => closeWindow("news")}
@@ -1640,23 +1627,11 @@ const App: React.FC = () => {
                 zIndex={windows.news.zIndex}
                 onFocus={() => focusWindow("news")}
               />
-            </motion.div>
+            </div>
           )}
 
           {windows.messenger.isOpen && !windows.messenger.isMinimized && (
-            <motion.div
-               key="messenger"
-               initial={{ scale: 0.95, opacity: 0 }}
-               animate={{ scale: 1, opacity: 1 }}
-               exit={{ scale: 0.95, opacity: 0, transition: { duration: 0.1 } }}
-               style={{ 
-                 position: 'absolute', 
-                 zIndex: windows.messenger.zIndex,
-                 left: 100, 
-                 top: 100
-               }}
-               className="pointer-events-auto"
-            >
+            <div className="window-enter">
               <StudioNetwork
                 state={gameState}
                 onSendMoney={handleSendMoney}
@@ -1668,9 +1643,8 @@ const App: React.FC = () => {
                 onFocus={() => focusWindow("messenger")}
                 playNotificationSound={playNotificationSound}
               />
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
       </div>
 
       {showProductionWizard && (

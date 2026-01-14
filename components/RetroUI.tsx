@@ -23,7 +23,7 @@ export const RetroInput: React.FC<
   />
 );
 
-import { motion } from "framer-motion";
+
 
 export const WindowFrame: React.FC<{
   title: string;
@@ -97,11 +97,7 @@ export const WindowFrame: React.FC<{
   }, [isDragging]);
 
   return (
-    <motion.div
-      initial={{ scale: 0.95, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0.95, opacity: 0, transition: { duration: 0.1 } }}
-      transition={{ duration: 0.15 }}
+    <div
       style={
         isMaximized
           ? {
@@ -114,7 +110,7 @@ export const WindowFrame: React.FC<{
             }
           : { position: "absolute", left: pos.x, top: pos.y, zIndex }
       }
-      className={`flex flex-col bg-[#ece9d8] bevel-outset rounded-t-lg overflow-hidden xp-window-shadow pointer-events-auto ${
+      className={`window-enter flex flex-col bg-[#ece9d8] bevel-outset rounded-t-lg overflow-hidden xp-window-shadow pointer-events-auto ${
         isMaximized ? "w-full h-full !rounded-none" : className
       }`}
       onMouseDown={onFocus}
@@ -204,7 +200,7 @@ export const WindowFrame: React.FC<{
           {children}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

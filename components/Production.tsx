@@ -139,9 +139,7 @@ export const ProductionWizard: React.FC<Props> = ({
             onClick={onCancel}
             className="w-[21px] h-[21px] bg-[#d73f40] hover:bg-[#e65555] active:bg-[#b02b2c] border border-white/50 rounded-[3px] flex items-center justify-center shadow-sm"
           >
-             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L9 9M9 1L1 9" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+             <img src="/images/close.svg" alt="Close" className="w-[21px] h-[21px]" />
           </button>
         </div>
 
