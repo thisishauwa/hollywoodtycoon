@@ -137,7 +137,7 @@ export const ProductionWizard: React.FC<Props> = ({
           </span>
           <button 
             onClick={onCancel}
-            className="w-[21px] h-[21px] bg-[#d73f40] hover:bg-[#e65555] active:bg-[#b02b2c] border border-white/50 rounded-[3px] flex items-center justify-center shadow-sm"
+            className="hover:brightness-110 active:brightness-90 transition-all"
           >
              <img src="/images/close.svg" alt="Close" className="w-[21px] h-[21px]" />
           </button>

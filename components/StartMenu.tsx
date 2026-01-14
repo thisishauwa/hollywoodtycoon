@@ -39,7 +39,7 @@ const XPModal: React.FC<{
         <div className="flex gap-1">
             <button
               onClick={onClose}
-              className="w-[21px] h-[21px] bg-[#d73f40] hover:bg-[#e65555] active:bg-[#b02b2c] border border-white/50 rounded-[3px] flex items-center justify-center shadow-sm"
+              className="hover:brightness-110 active:brightness-90 transition-all"
               title="Close"
             >
               <img src="/images/close.svg" alt="Close" className="w-[21px] h-[21px]" />
