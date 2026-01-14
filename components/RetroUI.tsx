@@ -372,7 +372,11 @@ export const StatusBar: React.FC<{
         className="text-white text-sm hover:brightness-110 active:brightness-90 transition-all"
         title={isMuted ? "Unmute sounds" : "Mute sounds"}
       >
-        {isMuted ? "🔇" : "🔊"}
+        <img 
+          src={isMuted ? "/images/audio_off.png" : "/images/audio_on.png"} 
+          alt={isMuted ? "Muted" : "Sound On"}
+          className="w-4 h-4"
+        />
       </button>
       
       {items.map((item, i) => (

@@ -10,7 +10,7 @@ const iconInternet = "/images/High-Res_XP_Icons/Internet Properties.ico";
 const iconFolder = "/images/High-Res_XP_Icons/Folder Closed.ico";
 const iconGameController = "/images/High-Res_XP_Icons/Game Controller.ico";
 const iconActivateWindows = "/images/High-Res_XP_Icons/Activate Windows.ico";
-const iconLogOff = "/images/e4e4b7c82836ea1d57b3e70406ce25ededc95b6c.png";
+const iconLogOff = "/images/logout.png";
 
 // XP-style standard window (blue title bar, beige body)
 const XPModal: React.FC<{
@@ -60,7 +60,7 @@ const XPModal: React.FC<{
 const CreditsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <XPModal title="Credits" onClose={onClose} icon={iconHelp}>
     <div className="flex flex-col gap-4">
-       <div className="bg-white border-2 border-inset border-[#828790] p-4 h-48 overflow-y-auto font-sans leading-5 shadow-inner">
+       <div className="bg-white border-2 border-inset border-[#828790] p-4 h-48 overflow-y-auto font-tahoma leading-5 shadow-inner text-[13px]">
            <p className="font-bold text-[#003399] mb-2">Hollywood Tycoon XP Team</p>
            
            <p className="font-bold mt-3">Concept & Design</p>
