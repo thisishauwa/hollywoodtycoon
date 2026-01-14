@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { GameState, ProjectStatus, Movie } from "../types";
-import { RetroButton } from "./RetroUI";
+import { RetroButton, ExplorerToolbar } from "./RetroUI";
 import { useAuth } from "../contexts/AuthContext";
 
 interface Props {
@@ -324,23 +324,17 @@ export const ReleasedFilms: React.FC<Props> = ({ state }) => {
             <span className="px-2 py-0.5 hover:bg-[#316ac5] hover:text-white cursor-default">Help</span>
         </div>
 
-        {/* STANDARD BUTTONS TOOLBAR */}
+        {/* EXPLORER TOOLBAR */}
+        <ExplorerToolbar 
+          onBack={() => {/* No back navigation needed */}}
+          onForward={() => {/* No forward navigation needed */}}
+          onUp={() => {/* No up navigation needed */}}
+          canBack={false}
+          canForward={false}
+        />
+
+        {/* TAB SELECTOR BAR */}
         <div className="h-10 bg-[#ece9d8] border-b border-[#d4d0c8] flex items-center px-2 gap-1 shrink-0 select-none">
-            <div className="flex items-center gap-1 pr-1 border-r border-[#d4d0c8] mr-1">
-                <button className="flex items-center gap-1 hover:brightness-110 active:brightness-95 group">
-                    <img src="/images/Frame 99.svg" className="w-5 h-5 transform scale-x-[-1]" alt="Back" />
-                    <span className="text-[11px]">Back</span>
-                    <span className="text-[8px] ml-1">▼</span>
-                </button>
-                <img src="/images/Frame 99.svg" className="w-5 h-5 opacity-50" alt="Forward" />
-            </div>
-
-            <button className="p-1 hover:border border-[#d4d0c8] hover:shadow-sm active:shadow-inner rounded mx-1">
-                <img src="/images/Up.png" className="w-5 h-5 opacity-50" onError={(e) => e.currentTarget.src='/images/Documents.ico'} />
-            </button>
-
-            <div className="w-[1px] h-6 bg-[#d4d0c8] mx-1"></div>
-
             <button 
                 onClick={() => setActiveTab('my-films')}
                 className={`flex flex-col items-center justify-center px-2 py-0.5 rounded border ${
@@ -349,7 +343,7 @@ export const ReleasedFilms: React.FC<Props> = ({ state }) => {
                     : 'border-transparent hover:border-[#d4d0c8] hover:shadow-sm'
                 }`}
             >
-                <img src="/images/Documents.ico" className="w-5 h-5" />
+                <img src="/images/High-Res_XP_Icons/Video.ico" className="w-5 h-5" />
                 <span className="text-[9px] -mt-0.5">My Films</span>
             </button>
             <button 
@@ -360,7 +354,7 @@ export const ReleasedFilms: React.FC<Props> = ({ state }) => {
                     : 'border-transparent hover:border-[#d4d0c8] hover:shadow-sm'
                 }`}
             >
-               <img src="/images/Chart.ico" className="w-5 h-5" />
+               <img src="/images/High-Res_XP_Icons/Chart.ico" className="w-5 h-5" />
                 <span className="text-[9px] -mt-0.5">Charts</span>
             </button>
         </div>

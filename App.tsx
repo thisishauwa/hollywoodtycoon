@@ -1659,7 +1659,9 @@ const App: React.FC = () => {
         isOpen={showStartMenu}
         onClose={() => setShowStartMenu(false)}
         username={profile?.username || gameState.playerName}
+        userAvatar={profile?.avatar}
         onLogOff={signOut}
+        onSaveProfile={handleSaveProfile}
       />
 
       <StatusBar

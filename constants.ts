@@ -11,7 +11,7 @@ export const STUDIO_TIERS: StudioTierInfo[] = [
   {
     tier: StudioTier.Unknown,
     minReputation: 0,
-    maxReputation: 19,
+    maxReputation: 29,
     allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList],
     salaryDiscount: 0,
     description: "A new studio trying to break into the industry. Limited to newcomers and C-list talent.",
@@ -19,8 +19,8 @@ export const STUDIO_TIERS: StudioTierInfo[] = [
   },
   {
     tier: StudioTier.Indie,
-    minReputation: 20,
-    maxReputation: 39,
+    minReputation: 30,
+    maxReputation: 49,
     allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList, ActorTier.IndieDarling],
     salaryDiscount: 0,
     description: "An indie studio with growing recognition. Can now attract indie darlings.",
@@ -28,8 +28,8 @@ export const STUDIO_TIERS: StudioTierInfo[] = [
   },
   {
     tier: StudioTier.Rising,
-    minReputation: 40,
-    maxReputation: 59,
+    minReputation: 50,
+    maxReputation: 69,
     allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList, ActorTier.IndieDarling, ActorTier.BList],
     salaryDiscount: 5,
     description: "A rising studio making waves. B-list actors now take your calls. 5% salary discount.",
@@ -37,8 +37,8 @@ export const STUDIO_TIERS: StudioTierInfo[] = [
   },
   {
     tier: StudioTier.Major,
-    minReputation: 60,
-    maxReputation: 79,
+    minReputation: 70,
+    maxReputation: 89,
     allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList, ActorTier.IndieDarling, ActorTier.BList, ActorTier.AList],
     salaryDiscount: 10,
     description: "A major studio with industry clout. A-list actors are now accessible. 10% salary discount.",
@@ -46,7 +46,7 @@ export const STUDIO_TIERS: StudioTierInfo[] = [
   },
   {
     tier: StudioTier.Legendary,
-    minReputation: 80,
+    minReputation: 90,
     maxReputation: 100,
     allowedActorTiers: [ActorTier.Newcomer, ActorTier.CList, ActorTier.IndieDarling, ActorTier.BList, ActorTier.AList],
     salaryDiscount: 15,
