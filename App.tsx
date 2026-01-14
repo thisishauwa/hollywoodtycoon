@@ -44,6 +44,7 @@ import { supabase } from "./lib/supabase";
 import { ToastContainer } from "./contexts/ToastContext";
 import { useGameNotifications } from "./hooks/useGameNotifications";
 import { useSound } from "./contexts/SoundContext";
+import { AnimatePresence } from "framer-motion";
 
 const uuid = () =>
   "id-" +
@@ -1542,102 +1543,133 @@ const App: React.FC = () => {
       </div>
 
       <div className="flex-1 relative p-4 z-10 pointer-events-none">
-        {windows.manager.isOpen && !windows.manager.isMinimized && (
-          <WindowFrame
-            title="StarVision Studio Manager 2003"
-            className="w-full max-w-6xl h-fit max-h-[90vh]"
-            onClose={() => closeWindow("manager")}
-            onMinimize={() => toggleWindowMinimize("manager")}
-            isActive={activeWindowId === "manager"}
-            zIndex={windows.manager.zIndex}
-            onFocus={() => focusWindow("manager")}
-            initialPos={{ 
-              x: typeof window !== 'undefined' ? (window.innerWidth - 1152) / 2 : 100, 
-              y: 50 
-            }}
-          >
-            <div className="flex flex-col h-auto overflow-hidden bg-[#ece9d8]">
-              {/* FIXED TABS HEADER */}
-              <div className="flex px-1 pt-1 items-end shrink-0 border-b border-[#808080] bg-[#dcd8c0]">
-                <RetroTab
-                  isActive={activeTab === "dashboard"}
-                  onClick={() => setActiveTab("dashboard")}
-                  label="Summary"
-                />
-                <RetroTab
-                  isActive={activeTab === "scripts"}
-                  onClick={() => setActiveTab("scripts")}
-                  label="IP Market"
-                />
-                <RetroTab
-                  isActive={activeTab === "actors"}
-                  onClick={() => setActiveTab("actors")}
-                  label="Talent Pool"
-                />
-                <RetroTab
-                  isActive={activeTab === "releases"}
-                  onClick={() => setActiveTab("releases")}
-                  label="Filmography"
-                />
-                <RetroTab
-                  isActive={activeTab === "awards"}
-                  onClick={() => setActiveTab("awards")}
-                  label="Awards"
-                />
-              </div>
+        <AnimatePresence>
+          {windows.manager.isOpen && !windows.manager.isMinimized && (
+            <WindowFrame
+              key="manager"
+              title="StarVision Studio Manager 2003"
+              className="w-full max-w-6xl h-fit max-h-[90vh]"
+              onClose={() => closeWindow("manager")}
+              onMinimize={() => toggleWindowMinimize("manager")}
+              isActive={activeWindowId === "manager"}
+              zIndex={windows.manager.zIndex}
+              onFocus={() => focusWindow("manager")}
+              initialPos={{ 
+                x: typeof window !== 'undefined' ? (window.innerWidth - 1152) / 2 : 100, 
+                y: 50 
+              }}
+            >
+              <div className="flex flex-col h-auto overflow-hidden bg-[#ece9d8]">
+                {/* FIXED TABS HEADER */}
+                <div className="flex px-1 pt-1 items-end shrink-0 border-b border-[#808080] bg-[#dcd8c0]">
+                  <RetroTab
+                    isActive={activeTab === "dashboard"}
+                    onClick={() => setActiveTab("dashboard")}
+                    label="Summary"
+                  />
+                  <RetroTab
+                    isActive={activeTab === "scripts"}
+                    onClick={() => setActiveTab("scripts")}
+                    label="IP Market"
+                  />
+                  <RetroTab
+                    isActive={activeTab === "actors"}
+                    onClick={() => setActiveTab("actors")}
+                    label="Talent Pool"
+                  />
+                  <RetroTab
+                    isActive={activeTab === "releases"}
+                    onClick={() => setActiveTab("releases")}
+                    label="Filmography"
+                  />
+                  <RetroTab
+                    isActive={activeTab === "awards"}
+                    onClick={() => setActiveTab("awards")}
+                    label="Awards"
+                  />
+                </div>
 
-              {/* FLEXIBLE CONTENT BODY */}
-              <div className="h-auto p-0.5 flex flex-col overflow-hidden bg-white">
-                {activeTab === "dashboard" && (
-                  <div className="flex justify-end p-2 bg-[#ece9d8] border-b border-[#808080] shrink-0">
-                    <RetroButton
-                      onClick={() => setShowProductionWizard(true)}
-                      variant="primary"
-                      className="h-8 px-4 font-bold !bg-gradient-to-b !from-[#ece9d8] !to-[#d8d4c0] hover:!from-[#f5f5f5] hover:!to-[#e0dcc8]"
-                    >
-                      GREENLIGHT NEW FILM
-                    </RetroButton>
-                  </div>
-                )}
-
-                <div className="h-auto overflow-hidden">
-                  {activeTab === "dashboard" && <Dashboard state={gameState} />}
-                  {activeTab === "scripts" && <ScriptMarketMultiplayer />}
-                  {activeTab === "actors" && <ActorDb />}
-                  {activeTab === "releases" && (
-                    <ReleasedFilms state={gameState} />
+                {/* FLEXIBLE CONTENT BODY */}
+                <div className="h-auto p-0.5 flex flex-col overflow-hidden bg-white">
+                  {activeTab === "dashboard" && (
+                    <div className="flex justify-end p-2 bg-[#ece9d8] border-b border-[#808080] shrink-0">
+                      <RetroButton
+                        onClick={() => setShowProductionWizard(true)}
+                        variant="primary"
+                        className="h-8 px-4 font-bold !bg-gradient-to-b !from-[#ece9d8] !to-[#d8d4c0] hover:!from-[#f5f5f5] hover:!to-[#e0dcc8]"
+                      >
+                        GREENLIGHT NEW FILM
+                      </RetroButton>
+                    </div>
                   )}
-                  {activeTab === "awards" && <Awards state={gameState} />}
+
+                  <div className="h-auto overflow-hidden">
+                    {activeTab === "dashboard" && <Dashboard state={gameState} />}
+                    {activeTab === "scripts" && <ScriptMarketMultiplayer />}
+                    {activeTab === "actors" && <ActorDb />}
+                    {activeTab === "releases" && (
+                      <ReleasedFilms state={gameState} />
+                    )}
+                    {activeTab === "awards" && <Awards state={gameState} />}
+                  </div>
                 </div>
               </div>
-            </div>
-          </WindowFrame>
-        )}
+            </WindowFrame>
+          )}
 
-        {windows.news.isOpen && !windows.news.isMinimized && (
-          <MagazineWindow
-            state={gameState}
-            onClose={() => closeWindow("news")}
-            onMinimize={() => toggleWindowMinimize("news")}
-            isActive={activeWindowId === "news"}
-            zIndex={windows.news.zIndex}
-            onFocus={() => focusWindow("news")}
-          />
-        )}
+          {windows.news.isOpen && !windows.news.isMinimized && (
+             <motion.div
+               key="news" // Key is essential for AnimatePresence
+               initial={{ scale: 0.95, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               exit={{ scale: 0.95, opacity: 0, transition: { duration: 0.1 } }}
+               style={{ 
+                 position: 'absolute', 
+                 zIndex: windows.news.zIndex,
+                 left: 50, // Default positions, overridden by internal state usually, but wrapper needs layout
+                 top: 50
+               }}
+               className="pointer-events-auto"
+            >
+              <MagazineWindow
+                state={gameState}
+                onClose={() => closeWindow("news")}
+                onMinimize={() => toggleWindowMinimize("news")}
+                isActive={activeWindowId === "news"}
+                zIndex={windows.news.zIndex}
+                onFocus={() => focusWindow("news")}
+              />
+            </motion.div>
+          )}
 
-        {windows.messenger.isOpen && !windows.messenger.isMinimized && (
-          <StudioNetwork
-            state={gameState}
-            onSendMoney={handleSendMoney}
-            onSendMessage={handleSendMessage}
-            onClose={() => closeWindow("messenger")}
-            onMinimize={() => toggleWindowMinimize("messenger")}
-            isActive={activeWindowId === "messenger"}
-            zIndex={windows.messenger.zIndex}
-            onFocus={() => focusWindow("messenger")}
-            playNotificationSound={playNotificationSound}
-          />
-        )}
+          {windows.messenger.isOpen && !windows.messenger.isMinimized && (
+            <motion.div
+               key="messenger"
+               initial={{ scale: 0.95, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               exit={{ scale: 0.95, opacity: 0, transition: { duration: 0.1 } }}
+               style={{ 
+                 position: 'absolute', 
+                 zIndex: windows.messenger.zIndex,
+                 left: 100, 
+                 top: 100
+               }}
+               className="pointer-events-auto"
+            >
+              <StudioNetwork
+                state={gameState}
+                onSendMoney={handleSendMoney}
+                onSendMessage={handleSendMessage}
+                onClose={() => closeWindow("messenger")}
+                onMinimize={() => toggleWindowMinimize("messenger")}
+                isActive={activeWindowId === "messenger"}
+                zIndex={windows.messenger.zIndex}
+                onFocus={() => focusWindow("messenger")}
+                playNotificationSound={playNotificationSound}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {showProductionWizard && (

@@ -23,6 +23,8 @@ export const RetroInput: React.FC<
   />
 );
 
+import { motion } from "framer-motion";
+
 export const WindowFrame: React.FC<{
   title: string;
   children: React.ReactNode;
@@ -95,7 +97,11 @@ export const WindowFrame: React.FC<{
   }, [isDragging]);
 
   return (
-    <div
+    <motion.div
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.95, opacity: 0, transition: { duration: 0.1 } }}
+      transition={{ duration: 0.15 }}
       style={
         isMaximized
           ? {
@@ -198,7 +204,7 @@ export const WindowFrame: React.FC<{
           {children}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
