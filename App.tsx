@@ -1737,9 +1737,7 @@ const App: React.FC = () => {
         items={[
           `$${(gameState.balance / 1000).toFixed(0)}K`,
           `${gameState.reputation}% Rep`,
-           clock
-            ? `${getMonthName(clock.month).slice(0, 3)}`
-            : `Q${Math.ceil(gameState.month / 3)}`,
+          <MonthTimeline key="timeline" />,
         ]}
         activeWindows={taskbarItems}
         onToggleWindow={(id) => toggleWindowMinimize(id)}
