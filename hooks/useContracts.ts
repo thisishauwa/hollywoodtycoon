@@ -23,7 +23,7 @@ const toContract = (sc: SupabaseContract): ActorContract => ({
   studioId: sc.studio_id,
   startMonth: sc.start_month,
   startYear: sc.start_year,
-  durationMonths: sc.duration_months as 3 | 6 | 12,
+  durationMonths: sc.duration_months as 12 | 24 | 36,
   monthlySalary: sc.monthly_salary,
   signingBonus: sc.signing_bonus,
   status: sc.status as ActorContract["status"],
@@ -90,7 +90,7 @@ export const useContracts = () => {
   const signActor = useCallback(
     async (
       actorId: string,
-      durationMonths: 3 | 6 | 12,
+      durationMonths: 12 | 24 | 36,
       monthlySalary: number,
       signingBonus: number,
       currentMonth: number,

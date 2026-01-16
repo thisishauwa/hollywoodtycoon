@@ -200,6 +200,16 @@ const App: React.FC = () => {
     }
   }, [realStudios]);
 
+  // Sync projects from DB to game state
+  useEffect(() => {
+    if (dbProjects) {
+      setGameState((prev) => ({
+        ...prev,
+        projects: dbProjects,
+      }));
+    }
+  }, [dbProjects]);
+
   // Update reputation when profile changes
   useEffect(() => {
     if (profile) {
@@ -735,6 +745,7 @@ const App: React.FC = () => {
 
   // Track if this is the initial load for production (to skip processing on refresh)
   const isInitialProductionLoad = useRef(true);
+  const isProcessingProduction = useRef(false);
 
   // Process production advancement when global clock changes
   useEffect(() => {
@@ -841,11 +852,18 @@ const App: React.FC = () => {
           }
 
           // Advance production by one month
+          console.log(`[Production] Advancing project "${project.title}" (${project.id}) - Current status: ${project.status}, Phase progress: ${project.phaseProgress}%`);
+          
           const { movie, event, phaseChanged, released } = advanceProduction(
             project,
             clock.month,
             clock.year
           );
+
+          console.log(`[Production] After advancement - "${movie.title}" - New status: ${movie.status}, Phase progress: ${movie.phaseProgress}%, Phase changed: ${phaseChanged}, Released: ${released}`);
+          if (event) {
+            console.log(`[Production] Event generated: ${event.title} - ${event.description}`);
+          }
 
           updatedProjects[i] = movie;
 
@@ -863,6 +881,7 @@ const App: React.FC = () => {
 
           // Add production event to game events
           if (event) {
+            console.log(`[Production] Creating game event for "${project.title}": ${event.description}`);
             newEvents.push({
               id: event.id,
               month: clock.month,
@@ -1028,21 +1047,43 @@ const App: React.FC = () => {
         }
 
         // Insert production events into Supabase
+        // Insert production events into Supabase with deduplication
         if (newEvents.length > 0) {
-          const { error } = await supabase.from("game_events").insert(
-            newEvents.map((e: any) => ({
-              user_id: user.id,
-              event_type: e.type.toLowerCase(),
-              title: e.type,
-              description: e.message,
-              month: clock.month,
-              year: clock.year,
-              is_global: e.isGlobal || false, // Respect global flag
-            }))
-          );
+          const uniqueEventsToInsert = [];
+          
+          for (const e of newEvents) {
+            // Check if this specific event already exists
+            const { data: existingEvents } = await supabase
+              .from("game_events")
+              .select("id")
+              .eq("user_id", user.id)
+              .eq("description", e.message)
+              .eq("month", clock.month)
+              .eq("year", clock.year)
+              .limit(1);
 
-          if (error) {
-            console.error("Error inserting production events:", error);
+            if (!existingEvents || existingEvents.length === 0) {
+              uniqueEventsToInsert.push({
+                user_id: user.id,
+                event_type: e.type.toLowerCase(),
+                title: e.type,
+                description: e.message,
+                month: clock.month,
+                year: clock.year,
+                is_global: e.isGlobal || false,
+              });
+            } else {
+               console.log(`[Event Deduplication] Skipped duplicate event: "${e.message}"`);
+            }
+          }
+
+          if (uniqueEventsToInsert.length > 0) {
+            const { error } = await supabase.from("game_events").insert(uniqueEventsToInsert);
+            if (error) {
+              console.error("Error inserting production events:", error);
+            } else {
+              console.log(`[Event Deduplication] Successfully inserted ${uniqueEventsToInsert.length} new events.`);
+            }
           }
         }
       } catch (err) {
@@ -1402,6 +1443,12 @@ const App: React.FC = () => {
     budget: number,
     marketing: number
   ) => {
+    // Prevent duplicate submissions
+    if (isProcessingProduction.current) {
+      console.log("[Greenlight] Already processing, ignoring duplicate call");
+      return;
+    }
+    
     const script = gameState.ownedScripts.find((s) => s.id === scriptId);
     if (!script) return;
 
@@ -1410,6 +1457,9 @@ const App: React.FC = () => {
       console.error("User not authenticated");
       return;
     }
+    
+    // Set processing flag
+    isProcessingProduction.current = true;
 
     // Calculate estimated release date based on production phases
     const estimatedRelease = calculateEstimatedRelease(
@@ -1444,6 +1494,7 @@ const App: React.FC = () => {
     if (error || !savedProject) {
       console.error("Error creating project:", error);
       alert("Failed to create project. Please try again.");
+      isProcessingProduction.current = false; // Reset flag on error
       return;
     }
 
@@ -1451,32 +1502,64 @@ const App: React.FC = () => {
     const newBalance = gameState.balance - (budget + marketing);
     await updateBalance(newBalance);
 
-    // Save events to database (GLOBAL - visible to all players)
+    // Save events to database (GLOBAL - visible to all players) with deduplication
     const studioName = profile?.username || "A studio";
-    const greenlightEvent = {
-      user_id: user.id,
-      event_type: "GOOD",
-      title: "Project Greenlit",
-      description: `GREENLIT: ${studioName} has greenlit "${script.title}" (${script.genre}). Production begins.`,
-      month: gameState.month,
-      year: gameState.year,
-      is_read: false,
-      is_global: true, // Visible to all players
-    };
+    const greenlightEventDesc = `GREENLIT: ${studioName} has greenlit "${script.title}" (${script.genre}). Production begins.`;
+    
+    // Check if greenlight event already exists
+    const { data: existingGreenlight } = await supabase
+      .from("game_events")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("description", greenlightEventDesc)
+      .eq("month", gameState.month)
+      .eq("year", gameState.year)
+      .limit(1);
 
-    await supabase.from("game_events").insert(greenlightEvent);
-
-    if (marketing > 500000) {
+    if (!existingGreenlight || existingGreenlight.length === 0) {
       await supabase.from("game_events").insert({
         user_id: user.id,
-        event_type: "AD",
-        title: "Marketing Campaign",
-        description: `MARKETING: ${studioName} launches major campaign for "${script.title}"`,
+        event_type: "GOOD",
+        title: "Project Greenlit",
+        description: greenlightEventDesc,
         month: gameState.month,
         year: gameState.year,
         is_read: false,
         is_global: true, // Visible to all players
       });
+      console.log("[Greenlight] Inserted greenlight event");
+    } else {
+      console.log("[Greenlight] Skipped duplicate greenlight event");
+    }
+
+    if (marketing > 500000) {
+      const marketingEventDesc = `MARKETING: ${studioName} launches major campaign for "${script.title}"`;
+      
+      // Check if marketing event already exists
+      const { data: existingMarketing } = await supabase
+        .from("game_events")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("description", marketingEventDesc)
+        .eq("month", gameState.month)
+        .eq("year", gameState.year)
+        .limit(1);
+
+      if (!existingMarketing || existingMarketing.length === 0) {
+        await supabase.from("game_events").insert({
+          user_id: user.id,
+          event_type: "AD",
+          title: "Marketing Campaign",
+          description: marketingEventDesc,
+          month: gameState.month,
+          year: gameState.year,
+          is_read: false,
+          is_global: true, // Visible to all players
+        });
+        console.log("[Greenlight] Inserted marketing event");
+      } else {
+        console.log("[Greenlight] Skipped duplicate marketing event");
+      }
     }
 
     // **CRITICAL FIX**: Delete the script from owned_scripts table to prevent duplication
@@ -1536,6 +1619,10 @@ const App: React.FC = () => {
         events: newEvents,
       };
     });
+    
+    // Reset processing flag
+    isProcessingProduction.current = false;
+    
     setShowProductionWizard(false);
     setActiveTab("dashboard");
   };
@@ -1669,7 +1756,6 @@ const App: React.FC = () => {
                           onClick={() => setShowProductionWizard(true)}
                           className="!gap-1.5 !px-2"
                         >
-                          <img src="/images/Video.ico" className="w-4 h-4" alt="" />
                           Greenlight Film
                         </RetroButton>
                       </div>

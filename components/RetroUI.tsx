@@ -389,14 +389,6 @@ export const StatusBar: React.FC<{
           {item}
         </div>
       ))}
-      <div className="text-white text-[10px] font-bold flex flex-col items-end leading-none">
-        <span>
-          {new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
-      </div>
     </div>
   </div>
   );

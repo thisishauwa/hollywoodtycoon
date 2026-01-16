@@ -202,14 +202,16 @@ export const applyAwardEffects = async (
       const actorIdx = newState.actors.findIndex(a => a.id === winner.actorId);
       if (actorIdx !== -1) {
         const skillBoost = 5 + Math.floor(Math.random() * 5);
-        const salaryMultiplier = 1.3 + (Math.random() * 0.2); // 30-50% increase
+        const salaryMultiplier = 1.1 + (Math.random() * 0.1); // 10-20% increase (reduced from 30-50%)
+        const newSalary = Math.floor(newState.actors[actorIdx].salary * salaryMultiplier);
+        const cappedSalary = Math.min(newSalary, 10000000); // Cap at $10M
 
         newState.actors = [...newState.actors];
         const updatedActor = {
           ...newState.actors[actorIdx],
           skill: Math.min(100, newState.actors[actorIdx].skill + skillBoost),
           reputation: Math.min(100, newState.actors[actorIdx].reputation + 10),
-          salary: Math.floor(newState.actors[actorIdx].salary * salaryMultiplier),
+          salary: cappedSalary,
         };
         newState.actors[actorIdx] = updatedActor;
 

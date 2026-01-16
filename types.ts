@@ -169,6 +169,7 @@ export interface GameEvent {
   message: string;
   type: "INFO" | "GOOD" | "BAD" | "AUCTION" | "GOSSIP" | "AD";
   read: boolean;
+  isGlobal?: boolean;
 }
 
 export interface ActorContract {
@@ -177,7 +178,7 @@ export interface ActorContract {
   studioId: string;
   startMonth: number;
   startYear: number;
-  durationMonths: 3 | 6 | 12;
+  durationMonths: 12 | 24 | 36;
   monthlySalary: number;
   signingBonus: number;
   status: "active" | "expired" | "terminated" | "bought_out";

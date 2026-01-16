@@ -103,12 +103,12 @@ export const useGlobalClock = () => {
         console.log("[Clock] Subscription status:", status);
       });
 
-    // Update countdown every minute
+    // Update countdown every second for smooth timer display
     const countdownInterval = setInterval(() => {
       if (clock) {
         updateTimeRemaining(clock);
       }
-    }, 60000);
+    }, 1000); // Changed from 60000 to 1000 for per-second updates
 
     return () => {
       subscription.unsubscribe();

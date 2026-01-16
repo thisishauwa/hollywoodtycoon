@@ -43,7 +43,18 @@ export const useOwnedScripts = () => {
           return;
         }
 
-        setOwnedScripts(data || []);
+        // Deduplicate by script_id (in case of database duplicates)
+        // Keep the first occurrence of each unique script_id
+        const seen = new Map<string, OwnedScript>();
+        (data || []).forEach(script => {
+          if (!seen.has(script.script_id)) {
+            seen.set(script.script_id, script);
+          }
+        });
+        const uniqueScripts = Array.from(seen.values());
+        
+        console.log(`[OwnedScripts] Fetched ${data?.length || 0} scripts, ${uniqueScripts.length} unique`);
+        setOwnedScripts(uniqueScripts);
       } catch (error) {
         console.error("Error in fetchOwnedScripts:", error);
       } finally {
@@ -66,7 +77,15 @@ export const useOwnedScripts = () => {
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            setOwnedScripts((prev) => [payload.new as OwnedScript, ...prev]);
+            const newScript = payload.new as OwnedScript;
+            setOwnedScripts((prev) => {
+              // Prevent duplicates - check if script_id already exists
+              if (prev.some(s => s.script_id === newScript.script_id)) {
+                console.log(`[OwnedScripts] Ignoring duplicate INSERT for script_id: ${newScript.script_id}`);
+                return prev;
+              }
+              return [newScript, ...prev];
+            });
           } else if (payload.eventType === "DELETE") {
             setOwnedScripts((prev) =>
               prev.filter((s) => s.id !== payload.old.id)

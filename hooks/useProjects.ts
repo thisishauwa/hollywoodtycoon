@@ -104,7 +104,16 @@ export const useProjects = () => {
         return;
       }
 
-      setProjects((data || []).map(toMovie));
+      // Deduplicate by project ID (in case of database duplicates or rapid subscription events)
+      const uniqueProjects = (data || []).reduce((acc, project) => {
+        if (!acc.find(p => p.id === project.id)) {
+          acc.push(project);
+        }
+        return acc;
+      }, [] as SupabaseProject[]);
+      
+      console.log(`[Projects] Fetched ${data?.length || 0} projects, ${uniqueProjects.length} unique`);
+      setProjects(uniqueProjects.map(toMovie));
       setError(null);
     } catch (err: any) {
       console.error("[Projects] Error:", err);
