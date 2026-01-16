@@ -1246,7 +1246,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleWinAuction = async (script: Script) => {
+  const closeWindow = (id: string) => {
     setWindows((prev) => ({ ...prev, [id]: { ...prev[id], isOpen: false } }));
   };
 
@@ -1307,35 +1307,61 @@ const App: React.FC = () => {
     }, rivalBidDelay);
 
     // Auto-close auction after 30 seconds
-    setTimeout(() => {
-      setGameState((prev) => {
-        const script = prev.marketScripts.find((s) => s.id === scriptId);
-        if (!script) return prev;
+    setTimeout(async () => {
+      const script = gameState.marketScripts.find((s) => s.id === scriptId);
+      if (!script) return;
 
-        // If player is still high bidder, they win!
-        if (script.highBidderId === "player") {
-          // Check if player can afford it
-          if (prev.balance < script.currentBid) {
+      // If player is still high bidder, they win!
+      if (script.highBidderId === "player") {
+        // Check if player can afford it
+        if (gameState.balance < script.currentBid) {
+          setGameState((prev) => {
             const insufficientFundsEvent: GameEvent = {
               id: uuid(),
               month: prev.month,
               type: "BAD",
-              message: `AUCTION FAILED: Insufficient funds for "${
-                script.title
-              }". Need $${script.currentBid.toLocaleString()}.`,
+              message: `AUCTION FAILED: Insufficient funds for "${script.title}". Need $${script.currentBid.toLocaleString()}.`,
               read: false,
             };
             return {
               ...prev,
-              marketScripts: prev.marketScripts.filter(
-                (s) => s.id !== scriptId
-              ),
+              marketScripts: prev.marketScripts.filter((s) => s.id !== scriptId),
               events: [...prev.events, insufficientFundsEvent],
             };
-          }
+          });
+          return;
+        }
 
-          // Player wins!
-          const studioName = profile?.username || "A studio";
+        // Player wins! - Check for duplicate event BEFORE updating state
+        const studioName = profile?.username || "A studio";
+        const auctionEventDesc = `ACQUISITION: ${studioName} acquires "${script.title}" (${script.genre}) for $${script.currentBid.toLocaleString()}!`;
+        
+        const { data: existingAuction } = await supabase
+          .from("game_events")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("description", auctionEventDesc)
+          .eq("month", clock.month)
+          .eq("year", clock.year)
+          .limit(1);
+
+        if (!existingAuction || existingAuction.length === 0) {
+          await supabase.from("game_events").insert({
+            user_id: user.id,
+            event_type: 'INFO',
+            title: 'ACQUISITION',
+            description: auctionEventDesc,
+            month: clock.month,
+            year: clock.year,
+            is_read: false,
+            is_global: true, // Visible to all players
+          });
+        } else {
+          console.log("[Auction] Skipped duplicate auction event");
+        }
+
+        // Now update state
+        setGameState((prev) => {
           const wonEvent: GameEvent = {
             id: uuid(),
             month: prev.month,
@@ -1343,35 +1369,6 @@ const App: React.FC = () => {
             message: `ACQUISITION: ${studioName} acquires "${script.title}" for $${script.currentBid.toLocaleString()}!`,
             read: false,
           };
-
-          // Save to database for Variety (GLOBAL - visible to all players) with deduplication
-          const auctionEventDesc = `ACQUISITION: ${studioName} acquires "${script.title}" (${script.genre}) for $${script.currentBid.toLocaleString()}!`;
-          
-          const { data: existingAuction } = await supabase
-            .from("game_events")
-            .select("id")
-            .eq("user_id", user.id)
-            .eq("description", auctionEventDesc)
-            .eq("month", clock.month)
-            .eq("year", clock.year)
-            .limit(1);
-
-          if (!existingAuction || existingAuction.length === 0) {
-            await supabase.from("game_events").insert({
-              user_id: user.id,
-              event_type: 'INFO',
-              title: 'ACQUISITION',
-              description: auctionEventDesc,
-              month: clock.month,
-              year: clock.year,
-              is_read: false,
-              is_global: true, // Visible to all players
-            });
-          } else {
-            console.log("[Auction] Skipped duplicate auction event");
-          }
-
-          // NOTE: Removed notification - auction results shown in Variety feed only
 
           return {
             ...prev,
