@@ -26,6 +26,8 @@ import { ReleasedFilms } from "./components/Releases";
 import { Awards } from "./components/Awards";
 import { MagazineWindow } from "./components/MagazineWindow";
 import { StudioNetwork } from "./components/StudioNetwork";
+import { MonthTimeline } from "./components/MonthTimeline";
+import { GameTermTooltip } from "./components/Tooltip";
 import { useGlobalOwnedScripts } from "./hooks/useGlobalOwnedScripts";
 import { useScripts } from "./hooks/useScripts";
 // ActorChat removed - studio chat is in Messenger
