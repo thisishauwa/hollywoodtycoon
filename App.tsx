@@ -1377,8 +1377,10 @@ const App: React.FC = () => {
             marketScripts: prev.marketScripts.filter((s) => s.id !== scriptId),
             events: [...prev.events, wonEvent],
           };
-        } else {
-          // Rival won, remove from market
+        });
+      } else {
+        // Rival won, remove from market
+        setGameState((prev) => {
           const lostEvent: GameEvent = {
             id: uuid(),
             month: prev.month,
@@ -1395,8 +1397,8 @@ const App: React.FC = () => {
             marketScripts: prev.marketScripts.filter((s) => s.id !== scriptId),
             events: [...prev.events, lostEvent],
           };
-        }
-      });
+        });
+      }
     }, 30000); // 30 seconds
   };
 
