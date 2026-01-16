@@ -816,7 +816,7 @@ const App: React.FC = () => {
               .eq("id", actorId)
               .single();
 
-            if (actorData \u0026\u0026 actorData.status !== "In Production" \u0026\u0026 actorData.status !== "On Hiatus") {
+            if (actorData && actorData.status !== "In Production" && actorData.status !== "On Hiatus") {
               hasExpiredCast = true;
               expiredActors.push(actorData.name);
             }
