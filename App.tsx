@@ -1246,7 +1246,7 @@ const App: React.FC = () => {
     });
   };
 
-  const closeWindow = (id: string) => {
+  const handleWinAuction = async (script: Script) => {
     setWindows((prev) => ({ ...prev, [id]: { ...prev[id], isOpen: false } }));
   };
 
