@@ -1142,21 +1142,37 @@ const App: React.FC = () => {
                 // Trigger Notification
                 // notifyScriptAcquired removed to prevent spam on refresh
 
-                // Trigger Variety Event (BACKGROUND)
+                // Trigger Variety Event (BACKGROUND) with deduplication
                  const insertEvent = async () => {
                      try {
                         const studioName = user.user_metadata?.username || profile?.username || "The studio";
-                        const { error } = await supabase.from("game_events").insert({
-                            user_id: user.id,
-                            event_type: "INFO",
-                            title: "SCRIPT ACQUIRED",
-                            description: `${studioName} has acquired rights to "${script.title}" (${script.genre}). Pre-production can now begin.`,
-                            month: clock?.month || gameState.month,
-                            year: clock?.year || gameState.year,
-                            is_read: false,
-                            is_global: true // Visible to all players
-                        });
-                        if (error) console.error("Error inserting script event:", error);
+                        const eventDesc = `${studioName} has acquired rights to "${script.title}" (${script.genre}). Pre-production can now begin.`;
+                        
+                        // Check if event already exists
+                        const { data: existingEvent } = await supabase
+                          .from("game_events")
+                          .select("id")
+                          .eq("user_id", user.id)
+                          .eq("description", eventDesc)
+                          .eq("month", clock?.month || gameState.month)
+                          .eq("year", clock?.year || gameState.year)
+                          .limit(1);
+
+                        if (!existingEvent || existingEvent.length === 0) {
+                          const { error } = await supabase.from("game_events").insert({
+                              user_id: user.id,
+                              event_type: "INFO",
+                              title: "SCRIPT ACQUIRED",
+                              description: eventDesc,
+                              month: clock?.month || gameState.month,
+                              year: clock?.year || gameState.year,
+                              is_read: false,
+                              is_global: true // Visible to all players
+                          });
+                          if (error) console.error("Error inserting script event:", error);
+                        } else {
+                          console.log("[ScriptAcquisition] Skipped duplicate event");
+                        }
                      } catch (e) {
                          console.error("Error creating script event:", e);
                      }
@@ -1328,17 +1344,32 @@ const App: React.FC = () => {
             read: false,
           };
 
-          // Save to database for Variety (GLOBAL - visible to all players)
-          supabase.from("game_events").insert({
-            user_id: user.id,
-            event_type: 'INFO',
-            title: 'ACQUISITION',
-            description: `ACQUISITION: ${studioName} acquires "${script.title}" (${script.genre}) for $${script.currentBid.toLocaleString()}!`,
-            month: clock.month,
-            year: clock.year,
-            is_read: false,
-            is_global: true, // Visible to all players
-          });
+          // Save to database for Variety (GLOBAL - visible to all players) with deduplication
+          const auctionEventDesc = `ACQUISITION: ${studioName} acquires "${script.title}" (${script.genre}) for $${script.currentBid.toLocaleString()}!`;
+          
+          const { data: existingAuction } = await supabase
+            .from("game_events")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("description", auctionEventDesc)
+            .eq("month", clock.month)
+            .eq("year", clock.year)
+            .limit(1);
+
+          if (!existingAuction || existingAuction.length === 0) {
+            await supabase.from("game_events").insert({
+              user_id: user.id,
+              event_type: 'INFO',
+              title: 'ACQUISITION',
+              description: auctionEventDesc,
+              month: clock.month,
+              year: clock.year,
+              is_read: false,
+              is_global: true, // Visible to all players
+            });
+          } else {
+            console.log("[Auction] Skipped duplicate auction event");
+          }
 
           // NOTE: Removed notification - auction results shown in Variety feed only
 
