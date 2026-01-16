@@ -798,6 +798,46 @@ const App: React.FC = () => {
           const project = updatedProjects[i];
           if (project.status === "Released") continue;
 
+
+          // **CRITICAL VALIDATION**: Check if all cast members are still available
+          // If actor contracts expired, production should halt
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          let hasExpiredCast = false;
+          const expiredActors: string[] = [];
+
+          for (const actorId of project.cast) {
+            // Only check database actors (UUIDs), skip seed actors
+            if (!uuidRegex.test(actorId)) continue;
+
+            // Check if actor is still in production or on hiatus for this studio
+            const { data: actorData } = await supabase
+              .from("actors")
+              .select("status, name")
+              .eq("id", actorId)
+              .single();
+
+            if (actorData \u0026\u0026 actorData.status !== "In Production" \u0026\u0026 actorData.status !== "On Hiatus") {
+              hasExpiredCast = true;
+              expiredActors.push(actorData.name);
+            }
+          }
+
+          // If cast is invalid, halt production and notify
+          if (hasExpiredCast) {
+            console.warn(`[Production] "${project.title}" halted - actors unavailable:`, expiredActors);
+            
+            newEvents.push({
+              id: `halt-${project.id}`,
+              month: clock.month,
+              type: "BAD",
+              message: `⚠️ PRODUCTION HALTED: "${project.title}" - Cast members no longer available (${expiredActors.join(", ")}). Contract expired.`,
+              read: false,
+            });
+
+            // Skip production advancement for this project
+            continue;
+          }
+
           // Advance production by one month
           const { movie, event, phaseChanged, released } = advanceProduction(
             project,
@@ -1435,6 +1475,21 @@ const App: React.FC = () => {
         is_read: false,
         is_global: true, // Visible to all players
       });
+    }
+
+    // **CRITICAL FIX**: Delete the script from owned_scripts table to prevent duplication
+    // The script should only be used once for production
+    const { error: deleteError } = await supabase
+      .from("owned_scripts")
+      .delete()
+      .eq("script_id", scriptId)
+      .eq("user_id", user.id);
+
+    if (deleteError) {
+      console.error("[Greenlight] Error deleting owned script:", deleteError);
+      // Non-fatal - production can continue but script might reappear
+    } else {
+      console.log(`[Greenlight] Deleted script ${scriptId} from owned_scripts`);
     }
 
     // Set actors to "In Production" status in database (only for UUID actors)
